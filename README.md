@@ -71,3 +71,5 @@
  improve it or to remove objectionable or illegal materials. Any content references in the old metadata remains on the
  IPFS network, but is no longer likely to be pinned by any Riff.CC users and no longer earns any BONS, reducing any
  incentive for our network of users to continue seeding it.
+
+ The implementation of such a system with open and transparent code would allow any platform to create their own "view" of the world, consuming Riff.CC's content and user bandwidth in a symbiotic fashion, or some other set of content or some combination of both.
