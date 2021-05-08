@@ -1,6 +1,6 @@
 # The Director
-The Director is a special research project of Riff.CC, intended to completely decentralise the primary mechanisms that
-allow Riff.CC to operate.
+ The Director is a special research project of Riff.CC, intended to completely decentralise the primary mechanisms that
+ allow Riff.CC to operate.
 
 ## Purpose
  The Director creates a JSON-based "pseudo-API" suitable for consumption by applications, both SPA and traditional.
@@ -25,6 +25,9 @@ allow Riff.CC to operate.
  while retaining the ability to switch to a new keypair in the process. As all key pairs must have tokens generated
  by the minting baton in order to be considered valid, any key pair with tokens must have been created by Riff.CC.
 
+ It follows that any metadata and any IPFS hashes described the "pseudo-API" were verifiably certified by our keys,
+ providing a level of end-to-end assurance that they are legitimate.
+
  A compromised key pair could allow an attacker to publish content and force Riff.CC users to see it.
  However, it's possible to permanently invalidate a compromised key pair - we simply issue a new key pair, then update
  the Origin Root pointer to include the new Wallet B address instead of the old one.
@@ -37,6 +40,14 @@ allow Riff.CC to operate.
  If the suggested address' SLP tokens are older than those of the currently selected key pair, we know that either a
  malicious attacker has altered the contents of the Origin Root gateway to return an old and compromised key pair,
  or - much more likely - the CDN is storing old or cached data. We simply ignore it and continue using the newer pair.
+
+ As alluded to earlier, digital signatures form the final piece of our proposed solution - as CDNs could potentially
+ alter the contents of the JSON blobs they deliver, we need a way of mitigating that. We deal with it by signing the
+ entire metadata bundle, which is in fact as simple as signing the root IPFS hash with the metadataSigner keys. Clients
+ can check that the hash has a valid associated signature and throw a warning or failure if it appears to be wrong. This
+ allows us to take advantage of CDNs to accelerate the delivery of the metadata bundles, without opening ourselves up to
+ the possibility of malicious data being injected. We can additionally use the Cloudflare-developed IPFS security
+ attributes to provide further assurances on the platforms which can support them.
 
 ## Ramifications
  In total this results in a system that allows for the issuing of new key pairs that can be distributed to less trusted
@@ -53,3 +64,10 @@ allow Riff.CC to operate.
  competitor project to overtake and out-compete us, but in this event we have either failed in our mission or they are
  bringing interesting new ideas and passion to the space. In any case, most competitors will simply live alongside us
  and help boost the overall goals of both projects.
+ 
+ If this research pans out, clients will be able to load content from Riff.CC with zero infrastructure of our own being
+ required, as all contents can be loaded from IPFS or an IPFS gateway and the pointers for where to retrieve that data
+ from are stored publicly on the BCH chain. We retain the ability to update the metadata and remove or edit content, to
+ improve it or to remove objectionable or illegal materials. Any content references in the old metadata remains on the
+ IPFS network, but is no longer likely to be pinned by any Riff.CC users and no longer earns any BONS, reducing any
+ incentive for our network of users to continue seeding it.
