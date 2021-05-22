@@ -12,17 +12,58 @@ import yaml
 import json
 import psycopg2.extras
 import sys
+from datetime import datetime
+
+# Set our API key
+apiname = os.path.expanduser('~/.rcc-api')
+apitoken = Path(apiname).read_text()
+
+# Dynamically load in our magic config files
+configname = os.path.expanduser('~/.rcc-tools.yml')
+config = yaml.safe_load(open(configname))
+
+# Check if the config is empty
+if config is None:
+    print("Failed to load configuration.")
+    sys.exit(1338)
+
+# Get our Riff.CC credentials and load them in
+sqlpassword = config["password"]
+radio_folder = config["radio_folder"]
+curator_user = config["curator_user"]
+curator_pass = config["curator_pass"]
+curator_host = config["curator_host"]
+page_rows = config["page_rows"]
 
 # Define methods
 
 
-def build_pages():
+def setup_timestamp():
+    # Grab the current time UTC, then use it to create a fixed timestamp for this Director run/metadata set.
+    current_time = datetime.now()
+    formatted_timestamp = current_time.strftime("%Y%m%dT%H%M%SZ")
+    return formatted_timestamp
+
+
+def create_director_folder():
+    director_path = radio_folder + "/" + "director_timestamp"
+    try:
+        os.makedirs(director_path)
+    except:
+        "The Director folder @ " + director_path + " already exists. This SHOULD NEVER happen. Exiting."
+        sys.exit([150])
+
+
+def fetch_data():
     print("Building page " + str(pageNum) + " as a group of " + str(page_rows) + " releases.")
     # Grab the configured number of rows from The Curator's database
     fetchquery = "FETCH " + str(page_rows) + " FROM director_cur;"
     cursorpg.execute(fetchquery)
-    result_set = cursorpg.fetchall()
+    fetched_data = cursorpg.fetchall()
+    return fetched_data
 
+
+def build_page():
     # Define a blank page list
     releases_list = []
 
@@ -79,26 +120,13 @@ def build_pages():
 def build_item():
     print("DEBUG: This method will build the item later but for now is a stub")
 
-# Set our API key
-apiname = os.path.expanduser('~/.rcc-api')
-apitoken = Path(apiname).read_text()
 
-# Dynamically load in our magic config files
-configname = os.path.expanduser('~/.rcc-tools.yml')
-config = yaml.safe_load(open(configname))
+director_timestamp = setup_timestamp()
+create_director_folder()
+result_set = fetch_data()
+print()
 
-# Check if the config is empty
-if config is None:
-    print("Failed to load configuration.")
-    sys.exit(1338)
-
-# Get our Riff.CC credentials and load them in
-sqlpassword = config["password"]
-curator_user = config["curator_user"]
-curator_pass = config["curator_pass"]
-curator_host = config["curator_host"]
-page_rows = config["page_rows"]
-
+# TODO: move all this to def setup_director():
 # Connect to the Curator database
 connpg = psycopg2.connect(host=curator_host,
                           database="collection",
@@ -114,8 +142,6 @@ mainquery = "DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;
 cursorpg.execute(mainquery)
 
 pageNum = 0
-
-
 
 
 # TODOs: (things the script does not do yet)
