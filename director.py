@@ -90,37 +90,33 @@ def build_page():
     for release in result_set:
         # Statically define the release protocol (for now)
         release_protocol = "ipfs"
-        # Use the data we grabbed to populate some normal Python variables (likely some better way to do this)
-        release_id = release["id"]
-        name = release["name"]
-        ipfs_hash = release["ipfs_hash"]
-        creator = release["creator"]
-        publication_date = release["publication_date"]
-        category = release["category_id"]
-        release_type = release["type_id"]
-        resolution = release["resolution_id"]
-        uploader = release["uploader_id"]
-        featured = release["featured"]
-        created_at = release["created_at"]
-        updated_at = release["updated_at"]
-        tags = release["tags"]
-        cover = release["cover"]
-        licence = release["licence"]
-        subtitles = release["subtitles"]
-        subtitles_file = release["subtitles_file"]
-
         # Create empty dictionaries for the release and for the metadata contained inside it
         release_dict = {}
         metadata_dict = {}
         # No-op to silence PyCharm warnings
         pass
-        # Begin building the release_dict from our variables
-        release_dict["release_protocol"] = release_protocol
-        release_dict["release_id"] = release_id
+        # Begin building the release_dict from our data
+        release_dict["release_protocol"] = "ipfs"
+        release_dict["release_id"] = release["id"]
 
-        # Create our metadata from the variables defined earlier
-        for dict_item in ["name", "ipfs_hash", "creator"]:
-            metadata_dict[dict_item] = eval(dict_item)
+        # Build the metadata dictionary from our data
+        # TODO - surely we can just do this for everything except "id" in the DB columns?
+        metadata_dict["name"] = release["name"]
+        metadata_dict["ipfs_hash"] = release["ipfs_hash"]
+        metadata_dict["creator"] = release["creator"]
+        metadata_dict["publication_date"] = str(release["publication_date"])
+        metadata_dict["category"] = release["category_id"]
+        metadata_dict["release_type"] = release["type_id"]
+        metadata_dict["resolution"] = release["resolution_id"]
+        metadata_dict["uploader"] = release["uploader_id"]
+        metadata_dict["featured"] = release["featured"]
+        metadata_dict["created_at"] = str(release["created_at"])
+        metadata_dict["updated_at"] = str(release["updated_at"])
+        metadata_dict["tags"] = release["tags"]
+        metadata_dict["cover"] = release["cover"]
+        metadata_dict["licence"] = release["licence"]
+        metadata_dict["subtitles"] = release["subtitles"]
+        metadata_dict["subtitles_file"] = release["subtitles_file"]
 
         # Insert the complete metadata dictionary into our release
         release_dict["metadata"] = metadata_dict
