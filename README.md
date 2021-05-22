@@ -43,3 +43,9 @@ As this system helps facilitate a full and permanent switch to IPFS and the reti
 If this research pans out, clients will be able to load content from Riff.CC with zero infrastructure of our own being required, as all contents can be loaded from IPFS or an IPFS gateway and the pointers for where to retrieve that data from are stored publicly on the BCH chain. We retain the ability to update the metadata and remove or edit content, to improve it or to remove objectionable or illegal materials. Any content referenced in the old metadata remains on the IPFS network, but is no longer likely to be pinned by any Riff.CC users and no longer earns any BONS, reducing any incentive for our network of users to continue seeding it.
 
 The implementation of such a system with open and transparent code would allow any platform to create their own "view" of the world, consuming Riff.CC's content and user bandwidth in a symbiotic fashion, or some other set of content or some combination of both.
+
+## Credits
+The Director would not have been possible without the following:
+
+* https://stackoverflow.com/a/54228841
+* JetBrains generously providing tools for our open source development
