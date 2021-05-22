@@ -64,6 +64,7 @@ def setup_timestamp():
 
 
 def create_director_folder():
+    global director_path
     director_path = radio_folder + "/director/" + director_timestamp
     try:
         os.makedirs(director_path, exist_ok=True)
@@ -82,6 +83,9 @@ def fetch_data():
 
 
 def build_page():
+    global pageNum
+    # Increment the page number as we start a new one
+    pageNum += 1
     print("Building page " + str(pageNum) + " as a group of " + str(page_rows) + " releases.")
     # Define a blank page list
     releases_list = []
@@ -124,27 +128,26 @@ def build_page():
         # Take the completed release and append it to the releases_list
         releases_list.append(release_dict.copy())
 
+    # Debug output
     print(releases_list)
 
     # Write out our completed page
-    with open('/opt/radio/test/output.json', 'w') as outfile:
+    page_metadata_path = director_path + "/" + str(pageNum) + ".json"
+    with open(page_metadata_path, 'w') as outfile:
         json.dump(releases_list, outfile)
     outfile.close()
-
-
-def build_item():
-    print("DEBUG: This method will build the item later but for now is a stub")
 
 # Declare some empty and starting variables/objects.
 pageNum = 0
 cursorpg = ""
+director_path = ""
 
 setup_director()
 director_timestamp = setup_timestamp()
 create_director_folder()
-result_set = fetch_data()
-build_page()
-print()
+for x in range(0, 10):
+    result_set = fetch_data()
+    build_page()
 
 # TODOs: (things the script does not do yet)
 # verification (optional)
