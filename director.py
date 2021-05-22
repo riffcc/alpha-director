@@ -39,6 +39,7 @@ page_rows = config["page_rows"]
 
 
 def setup_director():
+    global cursorpg
     # TODO: move all this to def setup_director():
     # Connect to the Curator database
     connpg = psycopg2.connect(host=curator_host,
@@ -62,24 +63,24 @@ def setup_timestamp():
 
 
 def create_director_folder():
-    director_path = radio_folder + "/" + director_timestamp
+    director_path = radio_folder + "/director/" + director_timestamp
     try:
-        os.makedirs(director_path)
+        os.makedirs(director_path,exist_ok=True)
     except:
         print("The Director folder @ " + director_path + " already exists. This SHOULD NEVER happen. Exiting.")
         sys.exit([150])
 
 
 def fetch_data():
-    print("Building page " + str(pageNum) + " as a group of " + str(page_rows) + " releases.")
+    global cursorpg
     # Grab the configured number of rows from The Curator's database
     fetchquery = "FETCH " + str(page_rows) + " FROM director_cur;"
     cursorpg.execute(fetchquery)
     fetched_data = cursorpg.fetchall()
     return fetched_data
 
-
 def build_page():
+    print("Building page " + str(pageNum) + " as a group of " + str(page_rows) + " releases.")
     # Define a blank page list
     releases_list = []
 
@@ -137,25 +138,12 @@ def build_item():
     print("DEBUG: This method will build the item later but for now is a stub")
 
 pageNum = 0
-
-# TODO: move all this to def setup_director():
-# Connect to the Curator database
-connpg = psycopg2.connect(host=curator_host,
-                          database="collection",
-                          user=curator_user,
-                          password=curator_pass)
-
-# create a cursor
-cursorpg = connpg.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-# Open a read cursor
-# https://www.citusdata.com/blog/2016/03/30/five-ways-to-paginate/
-mainquery = "DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;"
-cursorpg.execute(mainquery)
+cursorpg = ""
 
 director_timestamp = setup_timestamp()
 create_director_folder()
 result_set = fetch_data()
+build_page()
 print()
 
 # TODOs: (things the script does not do yet)
