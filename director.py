@@ -38,6 +38,22 @@ page_rows = config["page_rows"]
 # Define methods
 
 
+def setup_director():
+    # TODO: move all this to def setup_director():
+    # Connect to the Curator database
+    connpg = psycopg2.connect(host=curator_host,
+                              database="collection",
+                              user=curator_user,
+                              password=curator_pass)
+
+    # create a cursor
+    cursorpg = connpg.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    # Open a read cursor
+    # https://www.citusdata.com/blog/2016/03/30/five-ways-to-paginate/
+    mainquery = "DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;"
+    cursorpg.execute(mainquery)
+
 def setup_timestamp():
     # Grab the current time UTC, then use it to create a fixed timestamp for this Director run/metadata set.
     current_time = datetime.now()
@@ -122,11 +138,6 @@ def build_item():
 
 pageNum = 0
 
-director_timestamp = setup_timestamp()
-create_director_folder()
-result_set = fetch_data()
-print()
-
 # TODO: move all this to def setup_director():
 # Connect to the Curator database
 connpg = psycopg2.connect(host=curator_host,
@@ -142,6 +153,10 @@ cursorpg = connpg.cursor(cursor_factory=psycopg2.extras.DictCursor)
 mainquery = "DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;"
 cursorpg.execute(mainquery)
 
+director_timestamp = setup_timestamp()
+create_director_folder()
+result_set = fetch_data()
+print()
 
 # TODOs: (things the script does not do yet)
 # verification (optional)
