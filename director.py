@@ -153,7 +153,15 @@ while not end_of_set:
     build_page()
     if (cursorpg.rowcount < page_rows):
         print("We appear to have reached the end, as we are now getting less rows than we are asking for.")
-        end_of_set = 1
+        print("Let's do one final fetch, which should return zero rows.")
+        fetch_data()
+        if(cursorpg.rowcount == 0):
+            print("Yay! We're good.")
+            end_of_set = 1
+        else:
+            die_message = "Something weird is going on, check The Curator."
+            print(die_message)
+            sys.exit(die_message)
 
 print("Created " + str(pageNum) + " pages")
 print("in folder " + director_path)
