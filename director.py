@@ -55,6 +55,7 @@ def setup_director():
     mainquery = "DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;"
     cursorpg.execute(mainquery)
 
+
 def setup_timestamp():
     # Grab the current time UTC, then use it to create a fixed timestamp for this Director run/metadata set.
     current_time = datetime.now()
@@ -65,7 +66,7 @@ def setup_timestamp():
 def create_director_folder():
     director_path = radio_folder + "/director/" + director_timestamp
     try:
-        os.makedirs(director_path,exist_ok=True)
+        os.makedirs(director_path, exist_ok=True)
     except:
         print("The Director folder @ " + director_path + " already exists. This SHOULD NEVER happen. Exiting.")
         sys.exit([150])
@@ -78,6 +79,7 @@ def fetch_data():
     cursorpg.execute(fetchquery)
     fetched_data = cursorpg.fetchall()
     return fetched_data
+
 
 def build_page():
     print("Building page " + str(pageNum) + " as a group of " + str(page_rows) + " releases.")
@@ -137,9 +139,11 @@ def build_page():
 def build_item():
     print("DEBUG: This method will build the item later but for now is a stub")
 
+# Declare some empty and starting variables/objects.
 pageNum = 0
 cursorpg = ""
 
+setup_director()
 director_timestamp = setup_timestamp()
 create_director_folder()
 result_set = fetch_data()
