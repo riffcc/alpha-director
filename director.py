@@ -46,11 +46,11 @@ def setup_timestamp():
 
 
 def create_director_folder():
-    director_path = radio_folder + "/" + "director_timestamp"
+    director_path = radio_folder + "/" + director_timestamp
     try:
         os.makedirs(director_path)
     except:
-        "The Director folder @ " + director_path + " already exists. This SHOULD NEVER happen. Exiting."
+        print("The Director folder @ " + director_path + " already exists. This SHOULD NEVER happen. Exiting.")
         sys.exit([150])
 
 
@@ -120,6 +120,7 @@ def build_page():
 def build_item():
     print("DEBUG: This method will build the item later but for now is a stub")
 
+pageNum = 0
 
 director_timestamp = setup_timestamp()
 create_director_folder()
@@ -140,8 +141,6 @@ cursorpg = connpg.cursor(cursor_factory=psycopg2.extras.DictCursor)
 # https://www.citusdata.com/blog/2016/03/30/five-ways-to-paginate/
 mainquery = "DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;"
 cursorpg.execute(mainquery)
-
-pageNum = 0
 
 
 # TODOs: (things the script does not do yet)
