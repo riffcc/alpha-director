@@ -33,7 +33,7 @@ radio_folder = config["radio_folder"]
 curator_user = config["curator_user"]
 curator_pass = config["curator_pass"]
 curator_host = config["curator_host"]
-page_rows = config["page_rows"]
+page_rows = int(config["page_rows"])
 
 # Define methods
 
@@ -139,15 +139,24 @@ def build_page():
 
 # Declare some empty and starting variables/objects.
 pageNum = 0
+end_of_set = 0
 cursorpg = ""
 director_path = ""
 
 setup_director()
 director_timestamp = setup_timestamp()
 create_director_folder()
-for x in range(0, 10):
+
+while not end_of_set:
     result_set = fetch_data()
+    print("ROWS: " + str(cursorpg.rowcount))
     build_page()
+    if (cursorpg.rowcount < page_rows):
+        print("We appear to have reached the end, as we are now getting less rows than we are asking for.")
+        end_of_set = 1
+
+print("Created " + str(pageNum) + " pages")
+print("in folder " + director_path)
 
 # TODOs: (things the script does not do yet)
 # verification (optional)
