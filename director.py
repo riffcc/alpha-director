@@ -16,7 +16,7 @@ import sys
 # Define methods
 
 
-def build_page():
+def build_pages():
     print("Building page " + str(pageNum) + " as a group of " + str(page_rows) + " releases.")
     # Grab the configured number of rows from The Curator's database
     fetchquery = "FETCH " + str(page_rows) + " FROM director_cur;"
@@ -24,7 +24,7 @@ def build_page():
     result_set = cursorpg.fetchall()
 
     # Define a blank page list
-    page_list = []
+    releases_list = []
 
     # For each release in the data we grabbed, build it and add it to the page's list
     for release in result_set:
@@ -65,20 +65,19 @@ def build_page():
         # Insert the complete metadata dictionary into our release
         release_dict["metadata"] = metadata_dict
 
-        # Take the completed release and append it to the page_list
-        page_list.append(release_dict.copy())
+        # Take the completed release and append it to the releases_list
+        releases_list.append(release_dict.copy())
 
-    print(page_list)
+    print(releases_list)
 
     # Write out our completed page
     with open('/opt/radio/test/output.json', 'w') as outfile:
-        json.dump(page_list, outfile)
+        json.dump(releases_list, outfile)
     outfile.close()
 
 
 def build_item():
     print("DEBUG: This method will build the item later but for now is a stub")
-
 
 # Set our API key
 apiname = os.path.expanduser('~/.rcc-api')
@@ -114,12 +113,10 @@ cursorpg = connpg.cursor(cursor_factory=psycopg2.extras.DictCursor)
 mainquery = "DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;"
 cursorpg.execute(mainquery)
 
-# Initiate an empty list
-releases_list = []
+pageNum = 0
 
-# Test
-pageNum = 1
-build_page()
+
+
 
 # TODOs: (things the script does not do yet)
 # verification (optional)
