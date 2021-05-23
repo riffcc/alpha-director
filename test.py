@@ -1,8 +1,10 @@
-from datetime import datetime
+import ipfshttpclient
+import inspect
+client = ipfshttpclient.connect()
+res = client.add('/opt/radio/director/20210523T012515Z', recursive=True)
 
-# Grab the current time UTC, then use it to create a fixed timestamp for this Director run/metadata set.
-current_time = datetime.now()
-director_timestamp = current_time.strftime("%Y%m%dT%H%M%SZ")
-
-print(director_timestamp)
-
+last_item = res[-1]
+print(last_item)
+print(type(last_item))
+print(inspect.getmembers(last_item))
+print(last_item['Hash'])

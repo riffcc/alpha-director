@@ -7,12 +7,14 @@
 # Import needed modules
 from __future__ import with_statement
 from pathlib import Path
+from datetime import datetime
+import ipfshttpclient
 import os
 import yaml
 import json
 import psycopg2.extras
 import sys
-from datetime import datetime
+import time # i wish i could
 
 # Set our API key
 apiname = os.path.expanduser('~/.rcc-api')
@@ -72,6 +74,15 @@ def create_director_folder():
         print("The Director folder @ " + director_path + " already exists. This SHOULD NEVER happen. Exiting.")
         sys.exit([150])
 
+def create_subfolder(subfolder):
+    create_releases_folder_path = director_path + "/" + subfolder
+    print(create_releases_folder_path)
+    try:
+        os.makedirs(create_releases_folder_path, exist_ok=True)
+    except:
+
+        print("Tried to create " + create_releases_folder_path + " but did not succeed")
+        sys.exit("COULD_NOT_CREATE_SUBFOLDER")
 
 def fetch_data():
     global cursorpg
@@ -132,20 +143,32 @@ def build_page():
     print(releases_list)
 
     # Write out our completed page
-    page_metadata_path = director_path + "/" + str(pageNum) + ".json"
+    page_metadata_path = director_path + "/pages/" + str(pageNum) + ".json"
     with open(page_metadata_path, 'w') as outfile:
         json.dump(releases_list, outfile)
     outfile.close()
 
+
+def add_to_ipfs(target_path):
+    try:
+        ipfs_added_path = ipfs_connection.add(target_path)
+        return ipfs_added_path[-1]['Hash']
+    except Exception as e:
+        print("Tried to add " + target_path + " to IPFS but there was an issue.")
+        print(e)
+        sys.exit("COULD_NOT_ADD_TO_IPFS")
+
 # Declare some empty and starting variables/objects.
 pageNum = 0
 end_of_set = 0
+ipfs_connection = ""
 cursorpg = ""
 director_path = ""
 
 setup_director()
 director_timestamp = setup_timestamp()
 create_director_folder()
+create_subfolder("pages")
 
 while not end_of_set:
     result_set = fetch_data()
@@ -165,6 +188,11 @@ while not end_of_set:
 
 print("Created " + str(pageNum) + " pages")
 print("in folder " + director_path)
+print("Adding the folder to IPFS.")
+
+ipfs_connection = ipfshttpclient.connect()
+releases_folder_ipfs_hash = add_to_ipfs(director_path + "/pages")
+print(releases_folder_ipfs_hash)
 
 # TODOs: (things the script does not do yet)
 # verification (optional)
