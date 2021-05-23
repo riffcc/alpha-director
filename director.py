@@ -14,7 +14,7 @@ import yaml
 import json
 import psycopg2.extras
 import sys
-import time # i wish i could
+import time  # i wish i could
 
 # Set our API key
 apiname = os.path.expanduser('~/.rcc-api')
@@ -95,6 +95,7 @@ def fetch_data():
 
 def build_page():
     global pageNum
+    build_page_timer = time.perf_counter()
     # Increment the page number as we start a new one
     pageNum += 1
     print("Building page " + str(pageNum) + " as a group of " + str(page_rows) + " releases.")
@@ -148,20 +149,53 @@ def build_page():
         json.dump(releases_list, outfile)
     outfile.close()
 
+    build_page_timer_done = time.perf_counter()
+    return build_page_timer_done - build_page_timer
+
+
+def build_all_pages():
+    global result_set
+    end_of_set = 0
+    build_all_pages_timer = time.perf_counter()
+    while not end_of_set:
+        result_set = fetch_data()
+        print("ROWS: " + str(cursorpg.rowcount))
+        time_to_build_page = build_page()
+        print(f"Built page {pageNum} in {time_to_build_page:0.4f} seconds")
+        if (cursorpg.rowcount < page_rows):
+            print("We appear to have reached the end, as we are now getting less rows than we are asking for.")
+            print("Let's do one final fetch, which should return zero rows.")
+            fetch_data()
+            if (cursorpg.rowcount == 0):
+                print("Yay! We're good.")
+                end_of_set = 1
+            else:
+                die_message = "Something weird is going on, check The Curator."
+                print(die_message)
+                sys.exit(die_message)
+    build_all_pages_timer_done = time.perf_counter()
+    print(f"Built {pageNum} pages in {build_all_pages_timer_done - build_all_pages_timer:0.4f} seconds")
+
 
 def add_to_ipfs(target_path):
+    add_to_ipfs_timer = time.perf_counter()
     try:
         ipfs_added_path = ipfs_connection.add(target_path)
+        add_to_ipfs_timer_done = time.perf_counter()
+        print(f"Added {target_path} to IPFS in {add_to_ipfs_timer_done - add_to_ipfs_timer:0.4f} seconds")
         return ipfs_added_path[-1]['Hash']
     except Exception as e:
         print("Tried to add " + target_path + " to IPFS but there was an issue.")
         print(e)
         sys.exit("COULD_NOT_ADD_TO_IPFS")
 
+
+# Connect to our local IPFS daemon
+ipfs_connection = ipfshttpclient.connect()
+# Create a timer so we can track how long tasks take
+globaltimer = time.perf_counter()
 # Declare some empty and starting variables/objects.
 pageNum = 0
-end_of_set = 0
-ipfs_connection = ""
 cursorpg = ""
 director_path = ""
 
@@ -169,28 +203,11 @@ setup_director()
 director_timestamp = setup_timestamp()
 create_director_folder()
 create_subfolder("pages")
+build_all_pages()
 
-while not end_of_set:
-    result_set = fetch_data()
-    print("ROWS: " + str(cursorpg.rowcount))
-    build_page()
-    if (cursorpg.rowcount < page_rows):
-        print("We appear to have reached the end, as we are now getting less rows than we are asking for.")
-        print("Let's do one final fetch, which should return zero rows.")
-        fetch_data()
-        if(cursorpg.rowcount == 0):
-            print("Yay! We're good.")
-            end_of_set = 1
-        else:
-            die_message = "Something weird is going on, check The Curator."
-            print(die_message)
-            sys.exit(die_message)
-
-print("Created " + str(pageNum) + " pages")
-print("in folder " + director_path)
+print("Created " + str(pageNum) + " pages in folder " + director_path)
 print("Adding the folder to IPFS.")
 
-ipfs_connection = ipfshttpclient.connect()
 releases_folder_ipfs_hash = add_to_ipfs(director_path + "/pages")
 print(releases_folder_ipfs_hash)
 
