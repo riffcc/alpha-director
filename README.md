@@ -44,6 +44,9 @@ If this research pans out, clients will be able to load content from Riff.CC wit
 
 The implementation of such a system with open and transparent code would allow any platform to create their own "view" of the world, consuming Riff.CC's content and user bandwidth in a symbiotic fashion, or some other set of content or some combination of both.
 
+## TODO
+* Efficiently recreate the tree based only on what has changed
+
 ## Credits
 The Director would not have been possible without the following:
 

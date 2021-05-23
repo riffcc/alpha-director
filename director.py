@@ -81,7 +81,6 @@ def create_subfolder(subfolder):
     try:
         os.makedirs(create_releases_folder_path, exist_ok=True)
     except:
-
         print("Tried to create " + create_releases_folder_path + " but did not succeed")
         sys.exit("COULD_NOT_CREATE_SUBFOLDER")
 
@@ -95,7 +94,7 @@ def fetch_data():
     return fetched_data
 
 
-def build_page():
+def build_page_and_ids():
     global pageNum
     build_page_timer = time.perf_counter()
     # Increment the page number as we start a new one
@@ -108,15 +107,17 @@ def build_page():
     for release in result_set:
         # Create empty dictionaries for the release and for the metadata contained inside it
         release_dict = {}
+        release_id_dict = {}
         metadata_dict = {}
         # No-op to silence PyCharm warnings
         pass
         # Begin building the release_dict from our data
         release_dict["release_protocol"] = "ipfs"
         release_dict["release_id"] = release["id"]
+        release_id_dict["release_protocol"] = "ipfs"
+        release_id_dict["release_id"] = release["id"]
 
         # Build the metadata dictionary from our data
-        # TODO - surely we can just do this for everything except "id" in the DB columns?
         metadata_dict["name"] = release["name"]
         metadata_dict["ipfs_hash"] = release["ipfs_hash"]
         metadata_dict["creator"] = release["creator"]
@@ -140,14 +141,26 @@ def build_page():
         # Take the completed release and append it to the releases_list
         releases_list.append(release_dict.copy())
 
+        # Append additional data to our metadata so we can produce a more detailed "release_id" entry
+        metadata_dict["source"] = release["source"]
+        metadata_dict["description"] = release["description"]
+        metadata_dict["mediainfo"] = release["mediainfo"]
+
+        # Insert the completed metadata dictionary into the long form release
+        release_id_dict["metadata"] = metadata_dict
+        id_metadata_path = director_path + "/releases/release_id/" + str(release["id"]) + ".json"
+        with open(id_metadata_path, 'w') as id_metadata_file:
+            json.dump(release_id_dict, id_metadata_file)
+        id_metadata_file.close()
+
     # Debug output
     print(releases_list)
 
     # Write out our completed page
-    page_metadata_path = director_path + "/pages/" + str(pageNum) + ".json"
-    with open(page_metadata_path, 'w') as outfile:
-        json.dump(releases_list, outfile)
-    outfile.close()
+    page_metadata_path = director_path + "/releases/pages/" + str(pageNum) + ".json"
+    with open(page_metadata_path, 'w') as page_metadata_file:
+        json.dump(releases_list, page_metadata_file)
+    page_metadata_file.close()
 
     build_page_timer_done = time.perf_counter()
     return build_page_timer_done - build_page_timer
@@ -160,19 +173,19 @@ def build_all_pages():
     while not end_of_set:
         result_set = fetch_data()
         print("ROWS: " + str(cursor.rowcount))
-        time_to_build_page = build_page()
+        time_to_build_page = build_page_and_ids()
         print(f"Built page {pageNum} in {time_to_build_page:0.4f} seconds")
         if cursor.rowcount < page_rows:
-            print("We appear to have reached the end, as we are now getting less rows than we are asking for.")
-            print("Let's do one final fetch, which should return zero rows.")
+            print("Reached the end, checking there are no more rows to fetch...")
             fetch_data()
             if cursor.rowcount == 0:
-                print("Yay! We're good.")
+                print("Success.")
                 end_of_set = 1
             else:
                 die_message = "Something weird is going on, check The Curator."
                 print(die_message)
                 sys.exit(die_message)
+
     build_all_pages_timer_done = time.perf_counter()
     print(f"Built {pageNum} pages in {build_all_pages_timer_done - build_all_pages_timer:0.4f} seconds")
 
@@ -190,6 +203,22 @@ def add_to_ipfs(target_path):
         sys.exit("COULD_NOT_ADD_TO_IPFS")
 
 
+def build_main_metadata():
+    global releases_folder_ipfs_hash
+    metadata_main_dict = {}
+    releases_main_dict = {}
+    available_apis = ["1.0.0"]
+
+    metadata_main_dict["available_apis"] = available_apis
+    metadata_main_dict["api_version"] = api_version
+    releases_main_dict["pages"] = pageNum
+    releases_main_dict["pages_folder"] = releases_folder_ipfs_hash
+    releases_main_dict["release_id_folder"] = release_id_folder_ipfs_hash
+    metadata_main_dict["releases"] = releases_main_dict
+    # Print the completed metadata file for debugging
+    print(json.dumps(metadata_main_dict))
+
+
 # Connect to our local IPFS daemon
 ipfs_connection = ipfshttpclient.connect()
 # Create a timer so we can track how long tasks take
@@ -198,18 +227,30 @@ global_timer = time.perf_counter()
 pageNum = 0
 cursor = ""
 director_path = ""
+# Statically set some variables
+api_version = "1.0.0"  # We'll begin proper versioning once there's an app consuming the API
 
 setup_director()
 director_timestamp = setup_timestamp()
 create_director_folder()
-create_subfolder("pages")
+create_subfolder("releases/pages")
+create_subfolder("releases/release_id")
 build_all_pages()
-
 print("Created " + str(pageNum) + " pages in folder " + director_path)
-print("Adding the folder to IPFS.")
+print("Adding the releases folder to IPFS.")
 
-releases_folder_ipfs_hash = add_to_ipfs(director_path + "/pages")
+releases_folder_ipfs_hash = add_to_ipfs(director_path + "/releases/pages")
 print(releases_folder_ipfs_hash)
+print("Adding the release_id folder to IPFS.")
+release_id_folder_ipfs_hash = add_to_ipfs(director_path + "/releases/release_id")
+print(release_id_folder_ipfs_hash)
+# build_featured_releases()
+build_main_metadata()
+# publish_to_bch_testnet()
+
+# Calculate the total run time
+global_timer_done = time.perf_counter()
+print(f"The Director is finished. Transpilation and publication took {global_timer_done - global_timer:0.4f} seconds.")
 
 # TODOs: (things the script does not do yet)
 # verification (optional)
