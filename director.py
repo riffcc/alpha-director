@@ -68,8 +68,13 @@ def setup_timestamp():
 def create_director_folder():
     global director_path
     director_path = radio_folder + "/director/" + director_timestamp
+    symlink_path = radio_folder + "/director/latest"
+    symlink_path_temp = radio_folder + "/director/latest_new"
+
     try:
         os.makedirs(director_path, exist_ok=True)
+        os.symlink(director_path, symlink_path_temp)
+        os.replace(symlink_path_temp, symlink_path)
     except:
         print("The Director folder @ " + director_path + " already exists. This SHOULD NEVER happen. Exiting.")
         sys.exit([150])
@@ -202,6 +207,18 @@ def add_to_ipfs(target_path):
         print(e)
         sys.exit("COULD_NOT_ADD_TO_IPFS")
 
+def add_to_ipfs_single(target_path):
+    add_to_ipfs_timer = time.perf_counter()
+    try:
+        ipfs_added_path = ipfs_connection.add(target_path)
+        add_to_ipfs_timer_done = time.perf_counter()
+        print(f"Added {target_path} to IPFS in {add_to_ipfs_timer_done - add_to_ipfs_timer:0.4f} seconds")
+        return ipfs_added_path['Hash']
+    except Exception as e:
+        print("Tried to add " + target_path + " to IPFS but there was an issue.")
+        print(e)
+        sys.exit("COULD_NOT_ADD_TO_IPFS")
+
 
 def build_main_metadata():
     global releases_folder_ipfs_hash
@@ -215,9 +232,15 @@ def build_main_metadata():
     releases_main_dict["pages_folder"] = releases_folder_ipfs_hash
     releases_main_dict["release_id_folder"] = release_id_folder_ipfs_hash
     metadata_main_dict["releases"] = releases_main_dict
+
     # Print the completed metadata file for debugging
     print(json.dumps(metadata_main_dict))
 
+    # Write out our completed page
+    main_metadata_file = director_path + "/main.json"
+    with open(main_metadata_file, 'w') as main_metadata_file:
+        json.dump(metadata_main_dict, main_metadata_file)
+    main_metadata_file.close()
 
 # Connect to our local IPFS daemon
 ipfs_connection = ipfshttpclient.connect()
@@ -240,16 +263,16 @@ print("Created " + str(pageNum) + " pages in folder " + director_path)
 print("Adding the releases folder to IPFS.")
 
 releases_folder_ipfs_hash = add_to_ipfs(director_path + "/releases/pages")
-print(releases_folder_ipfs_hash)
 print("Adding the release_id folder to IPFS.")
 release_id_folder_ipfs_hash = add_to_ipfs(director_path + "/releases/release_id")
-print(release_id_folder_ipfs_hash)
 # build_featured_releases()
 build_main_metadata()
+complete_metadata_ipfs_hash = add_to_ipfs_single(director_path + "/main.json")
 # publish_to_bch_testnet()
 
 # Calculate the total run time
 global_timer_done = time.perf_counter()
+print("Published the entire platform as " + complete_metadata_ipfs_hash)
 print(f"The Director is finished. Transpilation and publication took {global_timer_done - global_timer:0.4f} seconds.")
 
 # TODOs: (things the script does not do yet)
