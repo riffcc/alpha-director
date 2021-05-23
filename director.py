@@ -17,12 +17,12 @@ import sys
 import time  # i wish i could
 
 # Set our API key
-apiname = os.path.expanduser('~/.rcc-api')
-apitoken = Path(apiname).read_text()
+api_name = os.path.expanduser('~/.rcc-api')
+api_token = Path(api_name).read_text()
 
 # Dynamically load in our magic config files
-configname = os.path.expanduser('~/.rcc-tools.yml')
-config = yaml.safe_load(open(configname))
+config_name = os.path.expanduser('~/.rcc-tools.yml')
+config = yaml.safe_load(open(config_name))
 
 # Check if the config is empty
 if config is None:
@@ -30,7 +30,7 @@ if config is None:
     sys.exit(1338)
 
 # Get our Riff.CC credentials and load them in
-sqlpassword = config["password"]
+sql_password = config["password"]
 radio_folder = config["radio_folder"]
 curator_user = config["curator_user"]
 curator_pass = config["curator_pass"]
@@ -41,21 +41,21 @@ page_rows = int(config["page_rows"])
 
 
 def setup_director():
-    global cursorpg
+    global cursor
     # TODO: move all this to def setup_director():
     # Connect to the Curator database
-    connpg = psycopg2.connect(host=curator_host,
-                              database="collection",
-                              user=curator_user,
-                              password=curator_pass)
+    connection = psycopg2.connect(host=curator_host,
+                                  database="collection",
+                                  user=curator_user,
+                                  password=curator_pass)
 
     # create a cursor
-    cursorpg = connpg.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cursor = connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     # Open a read cursor
     # https://www.citusdata.com/blog/2016/03/30/five-ways-to-paginate/
-    mainquery = "DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;"
-    cursorpg.execute(mainquery)
+    main_query = "DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;"
+    cursor.execute(main_query)
 
 
 def setup_timestamp():
@@ -74,6 +74,7 @@ def create_director_folder():
         print("The Director folder @ " + director_path + " already exists. This SHOULD NEVER happen. Exiting.")
         sys.exit([150])
 
+
 def create_subfolder(subfolder):
     create_releases_folder_path = director_path + "/" + subfolder
     print(create_releases_folder_path)
@@ -84,12 +85,13 @@ def create_subfolder(subfolder):
         print("Tried to create " + create_releases_folder_path + " but did not succeed")
         sys.exit("COULD_NOT_CREATE_SUBFOLDER")
 
+
 def fetch_data():
-    global cursorpg
+    global cursor
     # Grab the configured number of rows from The Curator's database
-    fetchquery = "FETCH " + str(page_rows) + " FROM director_cur;"
-    cursorpg.execute(fetchquery)
-    fetched_data = cursorpg.fetchall()
+    fetch_query = "FETCH " + str(page_rows) + " FROM director_cur;"
+    cursor.execute(fetch_query)
+    fetched_data = cursor.fetchall()
     return fetched_data
 
 
@@ -104,8 +106,6 @@ def build_page():
 
     # For each release in the data we grabbed, build it and add it to the page's list
     for release in result_set:
-        # Statically define the release protocol (for now)
-        release_protocol = "ipfs"
         # Create empty dictionaries for the release and for the metadata contained inside it
         release_dict = {}
         metadata_dict = {}
@@ -159,14 +159,14 @@ def build_all_pages():
     build_all_pages_timer = time.perf_counter()
     while not end_of_set:
         result_set = fetch_data()
-        print("ROWS: " + str(cursorpg.rowcount))
+        print("ROWS: " + str(cursor.rowcount))
         time_to_build_page = build_page()
         print(f"Built page {pageNum} in {time_to_build_page:0.4f} seconds")
-        if (cursorpg.rowcount < page_rows):
+        if cursor.rowcount < page_rows:
             print("We appear to have reached the end, as we are now getting less rows than we are asking for.")
             print("Let's do one final fetch, which should return zero rows.")
             fetch_data()
-            if (cursorpg.rowcount == 0):
+            if cursor.rowcount == 0:
                 print("Yay! We're good.")
                 end_of_set = 1
             else:
@@ -193,10 +193,10 @@ def add_to_ipfs(target_path):
 # Connect to our local IPFS daemon
 ipfs_connection = ipfshttpclient.connect()
 # Create a timer so we can track how long tasks take
-globaltimer = time.perf_counter()
+global_timer = time.perf_counter()
 # Declare some empty and starting variables/objects.
 pageNum = 0
-cursorpg = ""
+cursor = ""
 director_path = ""
 
 setup_director()
