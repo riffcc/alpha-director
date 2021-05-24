@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fetcher</title>
+</head>
+<body>
+
+<script>
+    let url = 'https://bitdb.bch.sx/explorer/ewogICJ2IjogMiwKICAicSI6IHsKICAgICJmaW5kIjogewogICAgICAiaW4uZS5hIjogInFxNGtwM3czeWhodnk0Z200amdlemE0dnVzOHZweGdyd2M5MG44cmh4ZSIsCiAgICAgICJvdXQuZS5hIjogInFyOTg2dHpyeDhwZmRrMmhuaHFmdGdwZHI0bHU0dGRjeHE2OHM1cnNxcyIKICAgIH0KICB9Cn0=';
+
+    fetch(url)
+        .then(res => res.json())
+        .then((out) => {
+            console.log('Checkout this JSON! ', out);
+        })
+        .catch(err => { throw err });
+</script>
+</body>
+</html>

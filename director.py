@@ -40,9 +40,8 @@ page_rows = int(config["page_rows"])
 # Define methods
 
 
-def setup_director():
+def setup_director_releases(query):
     global cursor
-    # TODO: move all this to def setup_director():
     # Connect to the Curator database
     connection = psycopg2.connect(host=curator_host,
                                   database="collection",
@@ -54,8 +53,13 @@ def setup_director():
 
     # Open a read cursor
     # https://www.citusdata.com/blog/2016/03/30/five-ways-to-paginate/
-    main_query = "DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;"
-    cursor.execute(main_query)
+    cursor.execute(query)
+
+
+def destroy_cursor():
+    global cursor
+    kill_query = "COMMIT;"
+    cursor.execute(kill_query)
 
 
 def setup_timestamp():
@@ -99,14 +103,14 @@ def fetch_data():
     return fetched_data
 
 
-def build_page_and_ids():
-    global pageNum
+def build_page_and_ids(write_path):
+    global page_num
     build_page_timer = time.perf_counter()
     # Increment the page number as we start a new one
-    pageNum += 1
-    print("Building page " + str(pageNum) + " as a group of " + str(page_rows) + " releases.")
+    page_num += 1
+    print("Building page " + str(page_num) + " as a group of " + str(page_rows) + " releases.")
     # Define a blank page list
-    releases_list = []
+    page_release_list = []
 
     # For each release in the data we grabbed, build it and add it to the page's list
     for release in result_set:
@@ -143,48 +147,55 @@ def build_page_and_ids():
         # Insert the complete metadata dictionary into our release
         release_dict["metadata"] = metadata_dict
 
-        # Take the completed release and append it to the releases_list
-        releases_list.append(release_dict.copy())
+        # Take the completed release and append it to the page_release_list
+        page_release_list.append(release_dict.copy())
+
+        # If the release is featured, append it to the featured_list.
+        #if release["featured"] == True:
 
         # Append additional data to our metadata so we can produce a more detailed "release_id" entry
         metadata_dict["source"] = release["source"]
         metadata_dict["description"] = release["description"]
         metadata_dict["mediainfo"] = release["mediainfo"]
 
-        # Insert the completed metadata dictionary into the long form release
-        release_id_dict["metadata"] = metadata_dict
-        id_metadata_path = director_path + "/releases/release_id/" + str(release["id"]) + ".json"
-        with open(id_metadata_path, 'w') as id_metadata_file:
-            json.dump(release_id_dict, id_metadata_file)
-        id_metadata_file.close()
+        # Insert the completed metadata dictionary into the long form release if we are building main releases
+        if write_path == "releases":
+            release_id_dict["metadata"] = metadata_dict
+            id_metadata_path = director_path + "/" + write_path + "/release_id/" + str(release["id"]) + ".json"
+            with open(id_metadata_path, 'w') as id_metadata_file:
+                json.dump(release_id_dict, id_metadata_file)
+            id_metadata_file.close()
 
     # Debug output
-    print(releases_list)
+    print(page_release_list)
 
-    # Write out our completed page
-    page_metadata_path = director_path + "/releases/pages/" + str(pageNum) + ".json"
+    # Write out our completed releases page
+    page_metadata_path = director_path + "/" + write_path + "/pages/" + str(page_num) + ".json"
     with open(page_metadata_path, 'w') as page_metadata_file:
-        json.dump(releases_list, page_metadata_file)
+        json.dump(page_release_list, page_metadata_file)
     page_metadata_file.close()
 
     build_page_timer_done = time.perf_counter()
     return build_page_timer_done - build_page_timer
 
 
-def build_all_pages():
+def build_all_pages(write_path):
     global result_set
+    global page_num
+    global number_of_pages_dict
+    page_num = 0
     end_of_set = 0
     build_all_pages_timer = time.perf_counter()
     while not end_of_set:
         result_set = fetch_data()
         print("ROWS: " + str(cursor.rowcount))
-        time_to_build_page = build_page_and_ids()
-        print(f"Built page {pageNum} in {time_to_build_page:0.4f} seconds")
+        time_to_build_page = build_page_and_ids(write_path)
+        print(f"Built page {page_num} in {time_to_build_page:0.4f} seconds")
         if cursor.rowcount < page_rows:
             print("Reached the end, checking there are no more rows to fetch...")
             fetch_data()
             if cursor.rowcount == 0:
-                print("Success.")
+                print("Successfully built " + write_path)
                 end_of_set = 1
             else:
                 die_message = "Something weird is going on, check The Curator."
@@ -192,8 +203,9 @@ def build_all_pages():
                 sys.exit(die_message)
 
     build_all_pages_timer_done = time.perf_counter()
-    print(f"Built {pageNum} pages in {build_all_pages_timer_done - build_all_pages_timer:0.4f} seconds")
-
+    print(f"Built {page_num} pages in {build_all_pages_timer_done - build_all_pages_timer:0.4f} seconds")
+    print("Created " + str(page_num) + " pages in folder " + director_path + "/" + write_path)
+    number_of_pages_dict[write_path] = page_num
 
 def add_to_ipfs(target_path):
     add_to_ipfs_timer = time.perf_counter()
@@ -224,14 +236,18 @@ def build_main_metadata():
     global releases_folder_ipfs_hash
     metadata_main_dict = {}
     releases_main_dict = {}
+    featured_main_dict = {}
     available_apis = ["1.0.0"]
 
     metadata_main_dict["available_apis"] = available_apis
     metadata_main_dict["api_version"] = api_version
-    releases_main_dict["pages"] = pageNum
+    releases_main_dict["pages"] = number_of_pages_dict["releases"]
     releases_main_dict["pages_folder"] = releases_folder_ipfs_hash
     releases_main_dict["release_id_folder"] = release_id_folder_ipfs_hash
+    featured_main_dict["pages"] = number_of_pages_dict["featured"]
+    featured_main_dict["pages_folder"] = featured_folder_ipfs_hash
     metadata_main_dict["releases"] = releases_main_dict
+    metadata_main_dict["featured"] = featured_main_dict
 
     # Print the completed metadata file for debugging
     print(json.dumps(metadata_main_dict))
@@ -247,24 +263,30 @@ ipfs_connection = ipfshttpclient.connect()
 # Create a timer so we can track how long tasks take
 global_timer = time.perf_counter()
 # Declare some empty and starting variables/objects.
-pageNum = 0
 cursor = ""
 director_path = ""
+number_of_pages_dict = {}
 # Statically set some variables
 api_version = "1.0.0"  # We'll begin proper versioning once there's an app consuming the API
 
-setup_director()
 director_timestamp = setup_timestamp()
 create_director_folder()
 create_subfolder("releases/pages")
 create_subfolder("releases/release_id")
-build_all_pages()
-print("Created " + str(pageNum) + " pages in folder " + director_path)
-print("Adding the releases folder to IPFS.")
+create_subfolder("featured/pages")
+setup_director_releases("DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;")
+build_all_pages("releases")
+destroy_cursor()
+setup_director_releases("DECLARE director_cur CURSOR FOR SELECT * FROM releases WHERE featured = true ORDER BY id;")
+build_all_pages("featured")
+destroy_cursor()
 
+print("Adding the releases folder to IPFS.")
 releases_folder_ipfs_hash = add_to_ipfs(director_path + "/releases/pages")
 print("Adding the release_id folder to IPFS.")
 release_id_folder_ipfs_hash = add_to_ipfs(director_path + "/releases/release_id")
+print("Adding the featured folder to IPFS.")
+featured_folder_ipfs_hash = add_to_ipfs(director_path + "/featured/pages")
 # build_featured_releases()
 build_main_metadata()
 complete_metadata_ipfs_hash = add_to_ipfs_single(director_path + "/main.json")
@@ -276,15 +298,14 @@ print("Published the entire platform as " + complete_metadata_ipfs_hash)
 print(f"The Director is finished. Transpilation and publication took {global_timer_done - global_timer:0.4f} seconds.")
 
 # TODOs: (things the script does not do yet)
-# verification (optional)
 # shell out to Sentinel and Janitor to validate data
-# build the main releases files
 # build the featured files
 # build the featured categories
-# build the deleted IDs and hashes
+# build the deleted IDs (and hashes during testing)
 # pull relationships from the Curator
 # build the related relationships for releases
 # build the related relationships for artists
+# do a single loop and separate how many items per page from how many items per query
 #
 # Developer notes:
 # While we could cast category_ids etc to actual categories within The Director,
