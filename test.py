@@ -1,10 +1,11 @@
-import ipfshttpclient
-import inspect
-client = ipfshttpclient.connect()
-res = client.add('/opt/radio/director/20210523T012515Z', recursive=True)
+test_nums = [0, 1]
 
-last_item = res[-1]
-print(last_item)
-print(type(last_item))
-print(inspect.getmembers(last_item))
-print(last_item['Hash'])
+build_tree_dict = {}
+
+for featured_category in test_nums:
+    build_tree_dict["featured_category_data"] = {}
+    build_tree_dict["featured_category_data"][str(featured_category)] = {'hello': 'world'}
+    print(build_tree_dict["featured_category_data"][str(featured_category)])
+    print(str(featured_category))
+    print(str(1))
+    # print(build_tree_dict["featured_category_data"][str(0)])
