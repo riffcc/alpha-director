@@ -38,6 +38,7 @@ curator_user = config["curator_user"]
 curator_pass = config["curator_pass"]
 curator_host = config["curator_host"]
 query_rows = int(config["page_rows"])
+force_new_publication = int(config["force_new_publication"])
 
 # Define methods
 
@@ -173,6 +174,10 @@ def build_all_pages():
             metadata_dict["licence"] = release["licence"]
             metadata_dict["subtitles"] = release["subtitles"]
             metadata_dict["subtitles_file"] = release["subtitles_file"]
+
+            # If instructed, insert a random string into our metadata as we build it so we can benchmark Director.
+            if force_new_publication == 1:
+                metadata_dict["salt"] = str(os.urandom(128))
 
             # Insert the complete metadata dictionary into our release
             release_dict["metadata"] = metadata_dict
@@ -374,6 +379,8 @@ api_version = "1.0.0"  # We'll begin proper versioning once there's an app consu
 
 print("Welcome to Riff.CC. Let's free the world's culture, together.")
 print("The Director will create a metadata tree and publish it to IPFS.")
+if(force_new_publication):
+    print("Special mode activated - will force IPFS to rehash everything as we build this.")
 director_timestamp = setup_timestamp()
 create_director_folder()
 create_subfolder("releases/pages")
