@@ -406,7 +406,7 @@ complete_metadata_ipfs_hash = add_to_ipfs_single(director_path + "/main.json")
 global_timer_done = time.perf_counter()
 print("Published the entire platform as " + complete_metadata_ipfs_hash)
 print("Total of " + str(total_number_of_releases) + " releases published.")
-print(f"The Director is finished. Transpilation and publication took {global_timer_done - global_timer:0.4f} seconds.")
+print(f"The Director is finished. \033[1mTranspilation and publication took {global_timer_done - global_timer:0.4f} seconds.")
 
 # TODOs: (things the script does not do yet)
 # warn if something was deleted (possibly should be handled by curator) and made it into our dataset anyway
