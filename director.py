@@ -35,12 +35,12 @@ radio_folder = config["radio_folder"]
 curator_user = config["curator_user"]
 curator_pass = config["curator_pass"]
 curator_host = config["curator_host"]
-page_rows = int(config["page_rows"])
+query_rows = int(config["page_rows"])
 
 # Define methods
 
 
-def setup_director_releases(query):
+def setup_cursor(query):
     global cursor
     # Connect to the Curator database
     connection = psycopg2.connect(host=curator_host,
@@ -97,115 +97,182 @@ def create_subfolder(subfolder):
 def fetch_data():
     global cursor
     # Grab the configured number of rows from The Curator's database
-    fetch_query = "FETCH " + str(page_rows) + " FROM director_cur;"
+    fetch_query = "FETCH " + str(query_rows) + " FROM director_cur;"
     cursor.execute(fetch_query)
     fetched_data = cursor.fetchall()
     return fetched_data
 
 
-def build_page_and_ids(write_path):
-    global page_num
-    build_page_timer = time.perf_counter()
-    # Increment the page number as we start a new one
-    page_num += 1
-    print("Building page " + str(page_num) + " as a group of " + str(page_rows) + " releases.")
-    # Define a blank page list
-    page_release_list = []
+def build_all_pages():
+    global result_set
+    global build_tree_dict
+    build_tree_dict["releases_pages"] = 1
+    build_tree_dict["releases_release_counter"] = 0
+    build_tree_dict["featured_pages"] = 1
+    build_tree_dict["featured_release_counter"] = 0
+    build_tree_dict["featured_category_data"] = {}
 
-    # For each release in the data we grabbed, build it and add it to the page's list
-    for release in result_set:
-        # Create empty dictionaries for the release and for the metadata contained inside it
-        release_dict = {}
-        release_id_dict = {}
-        metadata_dict = {}
-        # No-op to silence PyCharm warnings
-        pass
-        # Begin building the release_dict from our data
-        release_dict["release_protocol"] = "ipfs"
-        release_dict["release_id"] = release["id"]
-        release_id_dict["release_protocol"] = "ipfs"
-        release_id_dict["release_id"] = release["id"]
+    # TODO: build a list of category IDs here from the database
+    category_id_list = []
+    category_id_list.append("1")
+    build_tree_dict["featured_categories"] = category_id_list
 
-        # Build the metadata dictionary from our data
-        metadata_dict["name"] = release["name"]
-        metadata_dict["ipfs_hash"] = release["ipfs_hash"]
-        metadata_dict["creator"] = release["creator"]
-        metadata_dict["publication_date"] = str(release["publication_date"])
-        metadata_dict["category"] = release["category_id"]
-        metadata_dict["release_type"] = release["type_id"]
-        metadata_dict["resolution"] = release["resolution_id"]
-        metadata_dict["uploader"] = release["uploader_id"]
-        metadata_dict["featured"] = release["featured"]
-        metadata_dict["created_at"] = str(release["created_at"])
-        metadata_dict["updated_at"] = str(release["updated_at"])
-        metadata_dict["tags"] = release["tags"]
-        metadata_dict["cover"] = release["cover"]
-        metadata_dict["licence"] = release["licence"]
-        metadata_dict["subtitles"] = release["subtitles"]
-        metadata_dict["subtitles_file"] = release["subtitles_file"]
+    total_pages_num = 0
+    end_of_set = 0
+    build_all_pages_timer = time.perf_counter()
+    # TODO - move these into build_tree_dict
+    releases_page_release_list = []
+    featured_page_release_list = []
+    for featured_category in build_tree_dict["featured_categories"]:
+        build_tree_dict["featured_category_data"][str(featured_category)] = {}
+        build_tree_dict["featured_category_data"][str(featured_category)]["category_release_list"] = []
+        build_tree_dict["featured_category_data"][str(featured_category)]["category_release_counter"] = []
 
-        # Insert the complete metadata dictionary into our release
-        release_dict["metadata"] = metadata_dict
+    while not end_of_set:
+        result_set = fetch_data()
+        # For each release in the data we grabbed, process it
+        for release in result_set:
+            # Create empty dictionaries for the release and for the metadata contained inside it
+            release_dict = {}
+            release_id_dict = {}
+            metadata_dict = {}
+            # No-op to silence PyCharm warnings
+            pass
+            # Begin building the release_dict from our data
+            release_dict["release_protocol"] = "ipfs"
+            release_dict["release_id"] = release["id"]
+            print("Before release " + str(release["id"]) +": " + str(build_tree_dict["releases_release_counter"]))
+            release_id_dict["release_protocol"] = "ipfs"
+            release_id_dict["release_id"] = release["id"]
 
-        # Take the completed release and append it to the page_release_list
-        page_release_list.append(release_dict.copy())
+            # Build the metadata dictionary from our data
+            metadata_dict["name"] = release["name"]
+            metadata_dict["ipfs_hash"] = release["ipfs_hash"]
+            metadata_dict["creator"] = release["creator"]
+            metadata_dict["publication_date"] = str(release["publication_date"])
+            metadata_dict["category"] = release["category_id"]
+            metadata_dict["release_type"] = release["type_id"]
+            metadata_dict["resolution"] = release["resolution_id"]
+            metadata_dict["uploader"] = release["uploader_id"]
+            metadata_dict["featured"] = release["featured"]
+            metadata_dict["created_at"] = str(release["created_at"])
+            metadata_dict["updated_at"] = str(release["updated_at"])
+            metadata_dict["tags"] = release["tags"]
+            metadata_dict["cover"] = release["cover"]
+            metadata_dict["licence"] = release["licence"]
+            metadata_dict["subtitles"] = release["subtitles"]
+            metadata_dict["subtitles_file"] = release["subtitles_file"]
 
-        # If the release is featured, append it to the featured_list.
-        #if release["featured"] == True:
+            # Insert the complete metadata dictionary into our release
+            release_dict["metadata"] = metadata_dict
 
-        # Append additional data to our metadata so we can produce a more detailed "release_id" entry
-        metadata_dict["source"] = release["source"]
-        metadata_dict["description"] = release["description"]
-        metadata_dict["mediainfo"] = release["mediainfo"]
+            # Take the completed release and append it to the releases_page_release_list
+            releases_page_release_list.append(release_dict.copy())
+            build_tree_dict["releases_release_counter"] += 1
+            print("After release " + str(release["id"]) +": " + str(build_tree_dict["releases_releases_counter"]))
 
-        # Insert the completed metadata dictionary into the long form release if we are building main releases
-        if write_path == "releases":
+            # If this is a featured release, add it to featured releases and any categories it's in
+            if release["featured"]:
+                featured_page_release_list.append(release_dict.copy())
+                build_tree_dict["featured_releases_counter"] += 1
+                # Add it to whichever category is appropriate
+                build_tree_dict["featured_category_data"][release["category_id"]]["category_release_list"].append(release_dict.copy())
+                build_tree_dict["featured_category_data"][release["category_id"]]["category_release_list"]
+
+            # Append additional data to our metadata so we can produce a more detailed "release_id" entry
+            metadata_dict["source"] = release["source"]
+            metadata_dict["description"] = release["description"]
+            metadata_dict["mediainfo"] = release["mediainfo"]
+
+            # Insert the completed metadata dictionary into the long form releases
             release_id_dict["metadata"] = metadata_dict
-            id_metadata_path = director_path + "/" + write_path + "/release_id/" + str(release["id"]) + ".json"
+            id_metadata_path = director_path + "/releases/release_id/" + str(release["id"]) + ".json"
             with open(id_metadata_path, 'w') as id_metadata_file:
                 json.dump(release_id_dict, id_metadata_file)
             id_metadata_file.close()
 
-    # Debug output
-    print(page_release_list)
+            # If we have collected 50 releases, write out our completed releases page
+            if build_tree_dict["releases_releases_counter"] == 50:
+                releases_page_metadata_path = director_path + "/releases/pages/" + str(build_tree_dict["releases_pages"]) + ".json"
+                with open(releases_page_metadata_path, 'w') as releases_page_metadata_file:
+                    json.dump(releases_page_release_list, releases_page_metadata_file)
+                releases_page_metadata_file.close()
+                # Record that we built a page
+                total_pages_num += 1
+                build_tree_dict["releases_pages"] += 1
+                # Reset the counter
+                build_tree_dict["releases_releases_counter"] = 1
+                # Empty the release list
+                releases_page_release_list = []
 
-    # Write out our completed releases page
-    page_metadata_path = director_path + "/" + write_path + "/pages/" + str(page_num) + ".json"
-    with open(page_metadata_path, 'w') as page_metadata_file:
-        json.dump(page_release_list, page_metadata_file)
-    page_metadata_file.close()
+            # If we have collected 50 featured releases (or 50 in a category), do the same
+            if build_tree_dict["featured_releases_counter"] == 50:
+                featured_page_metadata_path = director_path + "/featured/pages/" + str(build_tree_dict["featured_pages"]) + ".json"
+                with open(featured_page_metadata_path, 'w') as featured_page_metadata_file:
+                    json.dump(featured_page_release_list, featured_page_metadata_file)
+                featured_page_metadata_file.close()
+                # Record that we built a page
+                total_pages_num += 1
+                build_tree_dict["featured_pages"] += 1
+                # Reset the counter
+                build_tree_dict["featured_releases_counter"] = 0
+                # Empty the release list
+                featured_page_release_list = []
 
-    build_page_timer_done = time.perf_counter()
-    return build_page_timer_done - build_page_timer
+            for featured_category in build_tree_dict["featured_categories"]:
+                if build_tree_dict["featured_category_data"][featured_category]["category_release_counter"] > 0:
+                    sys.exit("winning")
 
+            # for featured_cat in build_tree_dict["featured_releases_by_category"]:
+            # check if we've hit 50, do the same stuff
 
-def build_all_pages(write_path):
-    global result_set
-    global page_num
-    global number_of_pages_dict
-    page_num = 0
-    end_of_set = 0
-    build_all_pages_timer = time.perf_counter()
-    while not end_of_set:
-        result_set = fetch_data()
-        print("ROWS: " + str(cursor.rowcount))
-        time_to_build_page = build_page_and_ids(write_path)
-        print(f"Built page {page_num} in {time_to_build_page:0.4f} seconds")
-        if cursor.rowcount < page_rows:
+        if cursor.rowcount < query_rows:
             print("Reached the end, checking there are no more rows to fetch...")
             fetch_data()
             if cursor.rowcount == 0:
-                print("Successfully built " + write_path)
+                print("Successfully fetched all data from the database.")
+                # Record that we have successfully finished retrieving data
                 end_of_set = 1
+
+                # Collect leftovers for each type:
+                # All releases
+                if build_tree_dict["releases_releases_counter"] > 0:
+                    releases_page_metadata_path = director_path + "/releases/pages/" + str(
+                        build_tree_dict["releases_pages"]) + ".json"
+                    with open(releases_page_metadata_path, 'w') as releases_page_metadata_file:
+                        json.dump(releases_page_release_list, releases_page_metadata_file)
+                    releases_page_metadata_file.close()
+                    # Record that we built a page
+                    total_pages_num += 1
+                    build_tree_dict["releases_pages"] += 1
+                    # Reset the counter
+                    build_tree_dict["releases_releases_counter"] = 0
+                    # Empty the release list
+                    releases_page_release_list = []
+
+                # Featured releases
+                if build_tree_dict["featured_releases_counter"] > 0:
+                    featured_page_metadata_path = director_path + "/featured/pages/" + str(
+                        build_tree_dict["featured_pages"]) + ".json"
+                    with open(featured_page_metadata_path, 'w') as featured_page_metadata_file:
+                        json.dump(featured_page_release_list, featured_page_metadata_file)
+                    featured_page_metadata_file.close()
+                    # Record that we built a page
+                    total_pages_num += 1
+                    build_tree_dict["featured_pages"] += 1
+                    # Reset the counter
+                    build_tree_dict["featured_releases_counter"] = 0
+                    # Empty the release list
+                    featured_page_release_list = []
+
             else:
                 die_message = "Something weird is going on, check The Curator."
                 print(die_message)
                 sys.exit(die_message)
 
     build_all_pages_timer_done = time.perf_counter()
-    print(f"Built {page_num} pages in {build_all_pages_timer_done - build_all_pages_timer:0.4f} seconds")
-    print("Created " + str(page_num) + " pages in folder " + director_path + "/" + write_path)
-    number_of_pages_dict[write_path] = page_num
+    print(f"Built {total_pages_num} pages in {build_all_pages_timer_done - build_all_pages_timer:0.4f} seconds")
+    print("Created " + str(total_pages_num) + " pages in folder " + director_path)
 
 def add_to_ipfs(target_path):
     add_to_ipfs_timer = time.perf_counter()
@@ -234,6 +301,7 @@ def add_to_ipfs_single(target_path):
 
 def build_main_metadata():
     global releases_folder_ipfs_hash
+    global build_tree_dict
     metadata_main_dict = {}
     releases_main_dict = {}
     featured_main_dict = {}
@@ -241,11 +309,11 @@ def build_main_metadata():
 
     metadata_main_dict["available_apis"] = available_apis
     metadata_main_dict["api_version"] = api_version
-    releases_main_dict["pages"] = number_of_pages_dict["releases"]
+    releases_main_dict["pages"] = build_tree_dict["releases_pages"]
     releases_main_dict["pages_folder"] = releases_folder_ipfs_hash
     releases_main_dict["release_id_folder"] = release_id_folder_ipfs_hash
-    featured_main_dict["pages"] = number_of_pages_dict["featured"]
-    featured_main_dict["pages_folder"] = featured_folder_ipfs_hash
+    #featured_main_dict["pages"] = build_tree_dict["featured_pages"]
+    #featured_main_dict["pages_folder"] = featured_folder_ipfs_hash
     metadata_main_dict["releases"] = releases_main_dict
     metadata_main_dict["featured"] = featured_main_dict
 
@@ -265,7 +333,7 @@ global_timer = time.perf_counter()
 # Declare some empty and starting variables/objects.
 cursor = ""
 director_path = ""
-number_of_pages_dict = {}
+build_tree_dict = {}
 # Statically set some variables
 api_version = "1.0.0"  # We'll begin proper versioning once there's an app consuming the API
 
@@ -274,11 +342,8 @@ create_director_folder()
 create_subfolder("releases/pages")
 create_subfolder("releases/release_id")
 create_subfolder("featured/pages")
-setup_director_releases("DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;")
-build_all_pages("releases")
-destroy_cursor()
-setup_director_releases("DECLARE director_cur CURSOR FOR SELECT * FROM releases WHERE featured = true ORDER BY id;")
-build_all_pages("featured")
+setup_cursor("DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;")
+build_all_pages()
 destroy_cursor()
 
 print("Adding the releases folder to IPFS.")
