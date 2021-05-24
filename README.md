@@ -1,6 +1,8 @@
 # The Director
 The Director is a special research project of Riff.CC, intended to completely decentralise the primary mechanisms that allow Riff.CC to operate.
 
+Currently it successfully builds and publishes everything from a local PostgreSQL database to IPFS including a special JSON structure that uses IPFS hashes instead of traditional URLs to connect metadata. Documentation coming soon.
+
 NOTE: We will be using regular BCH or possibly SLP NFTs, not regular SLP tokens.
 ## Purpose
 The Director creates a JSON-based "pseudo-API" suitable for consumption by applications, both SPA and traditional.
