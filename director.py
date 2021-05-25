@@ -58,7 +58,6 @@ def setup_cursor(query):
     # https://www.citusdata.com/blog/2016/03/30/five-ways-to-paginate/
     cursor.execute(query)
 
-
 def destroy_cursor():
     global cursor
     kill_query = "COMMIT;"
@@ -131,6 +130,62 @@ def build_all_pages():
     releases_page_release_list = []
     featured_page_release_list = []
 
+    setup_cursor("DECLARE director_cur CURSOR FOR SELECT * FROM categories ORDER BY id;")
+    print("Fetching data from the Curator " + str(query_rows) + " rows at a time.")
+
+    # Tell The Director this is the first query we are doing.
+    first_query = 1
+
+    while not end_of_set:
+        result_set = fetch_data()
+        print("Fetching...")
+
+        # Create empty dictionaries for each category
+        category_dict = {}
+
+        # For each release in the data we grabbed, process it
+        for category in result_set:
+            category_dict["category_id"] = category["id"]
+            category_dict["name"] = category["name"]
+            category_dict["slug"] = category["slug"]
+            category_dict["image"] = category["image"]
+            category_dict["provides"] = category["provides"]
+
+            category_id_list.append(category_dict)
+
+            print("ID " + str(category_dict["category_id"]))
+            print("Name " + str(category_dict["name"]))
+
+        if cursor.rowcount < query_rows:
+            if first_query == 0:
+                print("Reached the end, checking there are no more rows to fetch...")
+                fetch_data()
+                for category in result_set:
+                    category_dict["category_id"] = category["id"]
+                    category_dict["name"] = category["name"]
+                    category_dict["slug"] = category["slug"]
+                    category_dict["image"] = category["image"]
+                    category_dict["provides"] = category["provides"]
+
+                    category_id_list.append(category_dict)
+
+                    print("ID " + str(category_dict["category_id"]))
+                    print("Name " + str(category_dict["name"]))
+                if cursor.rowcount == 0:
+                    print("Successfully fetched all data from the database.")
+                    # Record that we have successfully finished retrieving data
+                    end_of_set = 1
+                    print(category_id_list)
+            if first_query == 1:
+                print("Fetched less than 50 rows.")
+                first_query = 0
+                end_of_set = 1
+                print(category_id_list)
+    end_of_set = 0
+    destroy_cursor()
+
+
+    setup_cursor("DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;")
     for featured_category in build_tree_dict["featured_categories"]:
         # Build our data structures before we use them
         build_tree_dict["featured_category_data"][str(featured_category)] = {}
@@ -139,7 +194,7 @@ def build_all_pages():
         build_tree_dict["featured_category_data"][str(featured_category)]["category_release_counter"] = 0
         create_subfolder("featured/category/" + featured_category + "/pages/")
 
-    print("Fetching data from the Curator.")
+    print("Fetching data from the Curator " + str(query_rows) + " rows at a time.")
     while not end_of_set:
         result_set = fetch_data()
         print("Fetching...")
@@ -174,6 +229,8 @@ def build_all_pages():
             metadata_dict["licence"] = release["licence"]
             metadata_dict["subtitles"] = release["subtitles"]
             metadata_dict["subtitles_file"] = release["subtitles_file"]
+            metadata_dict["poster"] = release["poster"]
+            metadata_dict["thumbnail"] = release["thumbnail"]
 
             # If instructed, insert a random string into our metadata as we build it so we can benchmark Director.
             if force_new_publication == 1:
@@ -309,13 +366,14 @@ def build_all_pages():
                 print(die_message)
                 sys.exit(die_message)
 
+    destroy_cursor()
     build_all_pages_timer_done = time.perf_counter()
     print(f"Built {total_pages_num} pages in {build_all_pages_timer_done - build_all_pages_timer:0.4f} seconds in folder {director_path}")
 
 def add_to_ipfs(target_path):
     add_to_ipfs_timer = time.perf_counter()
     try:
-        ipfs_added_path = ipfs_connection.add(target_path)
+        ipfs_added_path = ipfs_connection.add(target_path,recursive=True)
         add_to_ipfs_timer_done = time.perf_counter()
         print(f"Published {target_path} to IPFS in {add_to_ipfs_timer_done - add_to_ipfs_timer:0.4f} seconds")
         return ipfs_added_path[-1]['Hash']
@@ -343,7 +401,19 @@ def build_main_metadata():
     metadata_main_dict = {}
     releases_main_dict = {}
     featured_main_dict = {}
+    featured_categories_main_dict = {}
     available_apis = ["1.0.0"]
+    featured_categories_published = [
+        {
+            "category_id": "1",
+            "category_name": "Movies",
+            "category_protocol": "ipfs",
+            # Technically not needed, but may be useful later
+            #"category_ipfs_path": ""
+        }
+    ]
+
+    #featured_categories_published[0]["category_ipfs_path"] = featured_categories_folder_ipfs_hash
 
     metadata_main_dict["available_apis"] = available_apis
     metadata_main_dict["api_version"] = api_version
@@ -352,6 +422,9 @@ def build_main_metadata():
     releases_main_dict["release_id_folder"] = release_id_folder_ipfs_hash
     featured_main_dict["pages"] = build_tree_dict["featured_pages"]
     featured_main_dict["pages_folder"] = featured_folder_ipfs_hash
+    featured_categories_main_dict["category_folder"] = featured_categories_folder_ipfs_hash
+    featured_categories_main_dict["categories"] = featured_categories_published
+    featured_main_dict["category"] = featured_categories_main_dict
     metadata_main_dict["releases"] = releases_main_dict
     metadata_main_dict["featured"] = featured_main_dict
 
@@ -386,9 +459,7 @@ create_director_folder()
 create_subfolder("releases/pages")
 create_subfolder("releases/release_id")
 create_subfolder("featured/pages")
-setup_cursor("DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;")
 build_all_pages()
-destroy_cursor()
 
 print("Adding the releases folder to IPFS.")
 releases_folder_ipfs_hash = add_to_ipfs(director_path + "/releases/pages")
@@ -396,6 +467,9 @@ print("Adding the release_id folder to IPFS.")
 release_id_folder_ipfs_hash = add_to_ipfs(director_path + "/releases/release_id")
 print("Adding the featured releases folder to IPFS.")
 featured_folder_ipfs_hash = add_to_ipfs(director_path + "/featured/pages")
+print("Adding the featured categories folder to IPFS.")
+featured_categories_folder_ipfs_hash = add_to_ipfs(director_path + "/featured/category")
+
 # TODO: Add the tree for our featured release categories
 m = build_main_metadata()
 print("Look what I made... \n" + m)
