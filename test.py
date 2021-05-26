@@ -1,7 +1,9 @@
-test_nums = [
-    0,
-    1,
-    2,
-]
+test_nums = {
+    0: {'foo': 'bar'},
+    1: {'foo': 'bar'},
+    2: {'foo': 'bar'}
+}
 
-print(test_nums)
+for i in test_nums:
+
+    print(i)

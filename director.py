@@ -117,11 +117,7 @@ def build_all_pages():
     # TODO: build a list of category IDs here from the database
     # for now we'll do it statically which is silly af
     # also this probably isn't the right place to do this anyways wheeeeeee
-    category_id_list = []
-    for i in range(10):
-        category_id_list.append(str(i))
-    category_id_list.append("1337")
-    build_tree_dict["featured_categories"] = category_id_list
+    category_list = []
 
     total_pages_num = 0
     end_of_set = 0
@@ -136,12 +132,11 @@ def build_all_pages():
     # Tell The Director this is the first query we are doing.
     first_query = 1
 
+    # Create empty dictionaries for each category
+    category_dict = {}
     while not end_of_set:
         result_set = fetch_data()
         print("Fetching...")
-
-        # Create empty dictionaries for each category
-        category_dict = {}
 
         # For each release in the data we grabbed, process it
         for category in result_set:
@@ -150,49 +145,36 @@ def build_all_pages():
             category_dict["slug"] = category["slug"]
             category_dict["image"] = category["image"]
             category_dict["provides"] = category["provides"]
+            category_list.append(category_dict)
 
-            category_id_list.append(category_dict)
-
-            print("ID " + str(category_dict["category_id"]))
-            print("Name " + str(category_dict["name"]))
+            category_dict = {}
 
         if cursor.rowcount < query_rows:
             if first_query == 0:
                 print("Reached the end, checking there are no more rows to fetch...")
                 fetch_data()
-                for category in result_set:
-                    category_dict["category_id"] = category["id"]
-                    category_dict["name"] = category["name"]
-                    category_dict["slug"] = category["slug"]
-                    category_dict["image"] = category["image"]
-                    category_dict["provides"] = category["provides"]
-
-                    category_id_list.append(category_dict)
-
-                    print("ID " + str(category_dict["category_id"]))
-                    print("Name " + str(category_dict["name"]))
+                # TODO: Also grab categories here when we have more than 50.
                 if cursor.rowcount == 0:
                     print("Successfully fetched all data from the database.")
                     # Record that we have successfully finished retrieving data
                     end_of_set = 1
-                    print(category_id_list)
+                    print(category_list)
             if first_query == 1:
                 print("Fetched less than 50 rows.")
                 first_query = 0
                 end_of_set = 1
-                print(category_id_list)
     end_of_set = 0
     destroy_cursor()
 
 
     setup_cursor("DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;")
-    for featured_category in build_tree_dict["featured_categories"]:
+    for category in category_list:
         # Build our data structures before we use them
-        build_tree_dict["featured_category_data"][str(featured_category)] = {}
-        build_tree_dict["featured_category_data"][str(featured_category)]["category_release_list"] = []
-        build_tree_dict["featured_category_data"][str(featured_category)]["category_pages"] = 0
-        build_tree_dict["featured_category_data"][str(featured_category)]["category_release_counter"] = 0
-        create_subfolder("featured/category/" + featured_category + "/pages/")
+        build_tree_dict["featured_category_data"][category["category_id"]] = {}
+        build_tree_dict["featured_category_data"][category["category_id"]]["category_release_list"] = []
+        build_tree_dict["featured_category_data"][category["category_id"]]["category_pages"] = 0
+        build_tree_dict["featured_category_data"][category["category_id"]]["category_release_counter"] = 0
+        create_subfolder("featured/category/" + str(category["category_id"]) + "/pages/")
 
     print("Fetching data from the Curator " + str(query_rows) + " rows at a time.")
     while not end_of_set:
@@ -251,9 +233,8 @@ def build_all_pages():
                 featured_page_release_list.append(release_dict.copy())
                 build_tree_dict["featured_release_counter"] += 1
                 # Add it to whichever category is appropriate
-                build_tree_dict["featured_category_data"][str(release["category_id"])]["category_release_list"].append(release_dict.copy())
-                build_tree_dict["featured_category_data"][str(release["category_id"])]["category_release_counter"] += 1
-
+                build_tree_dict["featured_category_data"][release["category_id"]]["category_release_list"].append(release_dict.copy())
+                build_tree_dict["featured_category_data"][release["category_id"]]["category_release_counter"] += 1
             # Append additional data to our metadata so we can produce a more detailed "release_id" entry
             metadata_dict["source"] = release["source"]
             metadata_dict["description"] = release["description"]
@@ -294,8 +275,8 @@ def build_all_pages():
                 # Empty the release list
                 featured_page_release_list = []
 
-            for featured_category in build_tree_dict["featured_categories"]:
-                if build_tree_dict["featured_category_data"][featured_category]["category_release_counter"] > query_rows:
+            for featured_category in build_tree_dict["featured_category_data"].items():
+                if build_tree_dict["featured_category_data"][featured_category[0]]["category_release_counter"] > query_rows:
                     # Record that we built a page
                     total_pages_num += 1
                     build_tree_dict["featured_category_data"][str(featured_category)]["category_pages"] += 1
@@ -347,19 +328,19 @@ def build_all_pages():
                     # Empty the release list
                     featured_page_release_list = []
 
-                for featured_category in build_tree_dict["featured_categories"]:
+                for featured_category in build_tree_dict["featured_category_data"]:
                     if build_tree_dict["featured_category_data"][featured_category]["category_release_counter"] > 0:
                         # Record that we built a page
                         total_pages_num += 1
-                        build_tree_dict["featured_category_data"][str(featured_category)]["category_pages"] += 1
-                        category_page_metadata_path = director_path + "/featured/category/" + featured_category + "/pages/" + str(build_tree_dict["featured_category_data"][str(featured_category)]["category_pages"]) + ".json"
+                        build_tree_dict["featured_category_data"][featured_category]["category_pages"] += 1
+                        category_page_metadata_path = director_path + "/featured/category/" + str(featured_category) + "/pages/" + str(build_tree_dict["featured_category_data"][featured_category]["category_pages"]) + ".json"
                         with open(category_page_metadata_path, 'w') as category_page_metadata_file:
-                            json.dump(build_tree_dict["featured_category_data"][str(featured_category)]["category_release_list"], category_page_metadata_file)
+                            json.dump(build_tree_dict["featured_category_data"][featured_category]["category_release_list"], category_page_metadata_file)
                         category_page_metadata_file.close()
                         # Reset the counter
                         build_tree_dict["featured_release_counter"] = 0
                         # Empty the release list
-                        build_tree_dict["featured_category_data"][str(featured_category)]["category_release_list"] = []
+                        build_tree_dict["featured_category_data"][featured_category]["category_release_list"] = []
 
             else:
                 die_message = "Something weird is going on, check The Curator."
