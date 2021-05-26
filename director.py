@@ -381,7 +381,7 @@ def build_all_pages():
 
     for category_to_check_for_content in build_tree_dict["featured_category_data"].keys():
         if build_tree_dict["featured_category_data"][category_to_check_for_content]["category_pages"] > 0:
-            category_metadata_tree[category_to_check_for_content]["metadata"]["populated"] = "1"
+            category_metadata_tree[category_to_check_for_content]["metadata"]["populated"] = 1
             print("Found featured content in " + category_metadata_tree[category_to_check_for_content]["metadata"]["name"] + ", marking as populated.")
 
     destroy_cursor()
