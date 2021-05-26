@@ -10,6 +10,8 @@
 from __future__ import with_statement
 from pathlib import Path
 from datetime import datetime
+from paramiko import SSHClient
+from scp import SCPClient
 import ipfshttpclient
 import os
 import yaml
@@ -17,6 +19,8 @@ import json
 import psycopg2.extras
 import sys
 import time  # i wish i could
+import requests
+
 
 # Set our API key
 api_name = os.path.expanduser('~/.rcc-api')
@@ -39,6 +43,7 @@ curator_pass = config["curator_pass"]
 curator_host = config["curator_host"]
 query_rows = int(config["page_rows"])
 force_new_publication = int(config["force_new_publication"])
+locator_path = "/var/www/html/public/magic/locator.json"
 
 # Define methods
 
@@ -58,6 +63,7 @@ def setup_cursor(query):
     # https://www.citusdata.com/blog/2016/03/30/five-ways-to-paginate/
     cursor.execute(query)
 
+
 def destroy_cursor():
     global cursor
     kill_query = "COMMIT;"
@@ -69,6 +75,30 @@ def setup_timestamp():
     current_time = datetime.now()
     formatted_timestamp = current_time.strftime("%Y%m%dT%H%M%SZ")
     return formatted_timestamp
+
+
+def setup_ssh_scp_transports(target):
+    global scp
+    global ssh
+    ssh = SSHClient()
+    ssh.load_system_host_keys()
+    ssh.connect(target)
+    scp = SCPClient(ssh.get_transport())
+
+
+def create_ipfs_locator():
+    locator_dict = {}
+    pass
+    locator_dict["platform"] = complete_metadata_ipfs_hash
+    locator_local_path = director_path + "/locator.json"
+    # Create our locator file
+    with open(locator_local_path, 'w') as locator:
+        json.dump(locator_dict, locator)
+    # Connect to our SSH host
+    setup_ssh_scp_transports('u.riff.cc')
+    scp.put(locator_local_path, remote_path=locator_path)
+    # Force IPFS to pin the content on the remote host
+    ssh.exec_command('ipfs pin add ' + complete_metadata_ipfs_hash)
 
 
 def create_director_folder():
@@ -358,10 +388,11 @@ def build_all_pages():
     build_all_pages_timer_done = time.perf_counter()
     print(f"Built {total_pages_num} pages in {build_all_pages_timer_done - build_all_pages_timer:0.4f} seconds in folder {director_path}")
 
+
 def add_to_ipfs(target_path):
     add_to_ipfs_timer = time.perf_counter()
     try:
-        ipfs_added_path = ipfs_connection.add(target_path,recursive=True)
+        ipfs_added_path = ipfs_connection.add(target_path, recursive=True)
         add_to_ipfs_timer_done = time.perf_counter()
         print(f"Published {target_path} to IPFS in {add_to_ipfs_timer_done - add_to_ipfs_timer:0.4f} seconds")
         return ipfs_added_path[-1]['Hash']
@@ -369,6 +400,7 @@ def add_to_ipfs(target_path):
         print("Tried to add " + target_path + " to IPFS but there was an issue.")
         print(e)
         sys.exit("COULD_NOT_ADD_TO_IPFS")
+
 
 def add_to_ipfs_single(target_path):
     add_to_ipfs_timer = time.perf_counter()
@@ -393,7 +425,7 @@ def build_main_metadata():
     featured_categories_main_dict = {}
     available_apis = ["1.0.0"]
 
-    #featured_categories_published[0]["category_ipfs_path"] = featured_categories_folder_ipfs_hash
+    # featured_categories_published[0]["category_ipfs_path"] = featured_categories_folder_ipfs_hash
 
     metadata_main_dict["available_apis"] = available_apis
     metadata_main_dict["api_version"] = api_version
@@ -415,7 +447,7 @@ def build_main_metadata():
     main_metadata_file.close()
 
     # Return the completed metadata file for debugging
-    return(json.dumps(metadata_main_dict))
+    return json.dumps(metadata_main_dict)
 
 
 # Connect to our local IPFS daemon
@@ -432,7 +464,7 @@ api_version = "1.0.0"  # We'll begin proper versioning once there's an app consu
 
 print("Welcome to Riff.CC. Let's free the world's culture, together.")
 print("The Director will create a metadata tree and publish it to IPFS.")
-if(force_new_publication):
+if force_new_publication:
     print("Special mode activated - will force IPFS to rehash everything as we build this.")
 director_timestamp = setup_timestamp()
 create_director_folder()
@@ -460,13 +492,21 @@ complete_metadata_ipfs_hash = add_to_ipfs_single(director_path + "/main.json")
 global_timer_done = time.perf_counter()
 print("Published the entire platform as " + complete_metadata_ipfs_hash)
 print("Total of " + str(total_number_of_releases) + " releases published.")
-print(f"The Director is finished. \033[1mTranspilation and publication took {global_timer_done - global_timer:0.4f} seconds.")
+print(f"The Director is finished. \033[1mTranspilation and publication took {global_timer_done - global_timer:0.4f} seconds. \033[0m \n")
+print("Uploading finished pointer to " + locator_path)
+# TODO: use BCH to create a locator *after* successfully grabbing the metadata from the CDN
+# It should be enough to just use requests naively and wait for the response to come back
+# before proper publication.
+create_ipfs_locator()
+print("Waiting for propagation...")
+time.sleep(10)
+print("Testing the magic locator...")
+response = requests.get("https://cdn.riff.cc/ipfs/" + complete_metadata_ipfs_hash)
+print(response.text)
 
 # TODOs: (things the script does not do yet)
 # warn if something was deleted (possibly should be handled by curator) and made it into our dataset anyway
 # shell out to Sentinel and Janitor to validate data
-# build the featured files
-# build the featured categories
 # build the deleted IDs (and hashes during testing)
 # pull relationships from the Curator
 # build the related relationships for releases
