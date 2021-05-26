@@ -99,6 +99,8 @@ def create_ipfs_locator():
     scp.put(locator_local_path, remote_path=locator_path)
     # Force IPFS to pin the content on the remote host
     ssh.exec_command('ipfs pin add ' + complete_metadata_ipfs_hash)
+    ssh.exec_command('ipfs pin add ' + featured_folder_ipfs_hash)
+    ssh.exec_command('ipfs pin add ' + featured_categories_folder_ipfs_hash)
 
 
 def create_director_folder():
@@ -417,6 +419,7 @@ def add_to_ipfs_single(target_path):
 
 def build_main_metadata():
     global releases_folder_ipfs_hash
+    global featured_categories_folder_ipfs_hash
     global build_tree_dict
     global category_metadata_tree
     metadata_main_dict = {}
@@ -518,3 +521,7 @@ print(response.text)
 # it makes more sense to have them defined in the database and built as a separate bit of metadata_ids in the metadata.
 # This allows for dynamism, and we can also fairly trivially cast them to "actual types" later, or even do both at once.
 # During debugging we may simply do both at once, then drop the "actual types" to keep metadata lighter.
+#
+# Need to add a "playlist" hash to metadata for each release
+# if a client sees it, it will attempt to play MAIN_IPFS_HASH/rcc.m3u8
+# this way MAIN_IPFS_HASH can be the folder, which is better for the distribution network
