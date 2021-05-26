@@ -108,16 +108,15 @@ def build_all_pages():
     global result_set
     global build_tree_dict
     global total_number_of_releases
+    global category_metadata_tree
     build_tree_dict["releases_pages"] = 0
     build_tree_dict["releases_release_counter"] = 0
     build_tree_dict["featured_pages"] = 0
     build_tree_dict["featured_release_counter"] = 0
     build_tree_dict["featured_category_data"] = {}
 
-    # TODO: build a list of category IDs here from the database
-    # for now we'll do it statically which is silly af
-    # also this probably isn't the right place to do this anyways wheeeeeee
-    category_list = []
+    # Define an empty dict for the category metadata tree
+    category_metadata_tree = {}
 
     total_pages_num = 0
     end_of_set = 0
@@ -146,7 +145,9 @@ def build_all_pages():
             category_dict["image"] = category["image"]
             category_dict["provides"] = category["provides"]
             category_dict["protocol"] = "ipfs"
-            category_list.append(category_dict)
+            category_dict["populated"] = 0
+            category_metadata_tree[category["id"]] = {}
+            category_metadata_tree[category["id"]]["metadata"] = category_dict
 
             category_dict = {}
 
@@ -163,19 +164,19 @@ def build_all_pages():
                 print("Fetched less than 50 rows.")
                 first_query = 0
                 end_of_set = 1
-    build_tree_dict["category_list_complete"] = category_list
+    build_tree_dict["category_list"] = category_metadata_tree
     end_of_set = 0
     destroy_cursor()
 
 
     setup_cursor("DECLARE director_cur CURSOR FOR SELECT * FROM releases ORDER BY id;")
-    for category in category_list:
+    for category in category_metadata_tree.keys():
         # Build our data structures before we use them
-        build_tree_dict["featured_category_data"][category["category_id"]] = {}
-        build_tree_dict["featured_category_data"][category["category_id"]]["category_release_list"] = []
-        build_tree_dict["featured_category_data"][category["category_id"]]["category_pages"] = 0
-        build_tree_dict["featured_category_data"][category["category_id"]]["category_release_counter"] = 0
-        create_subfolder("featured/category/" + str(category["category_id"]) + "/pages/")
+        build_tree_dict["featured_category_data"][category] = {}
+        build_tree_dict["featured_category_data"][category]["category_release_list"] = []
+        build_tree_dict["featured_category_data"][category]["category_pages"] = 0
+        build_tree_dict["featured_category_data"][category]["category_release_counter"] = 0
+        create_subfolder("featured/category/" + str(category) + "/pages/")
 
     print("Fetching data from the Curator " + str(query_rows) + " rows at a time.")
     while not end_of_set:
@@ -329,7 +330,7 @@ def build_all_pages():
                     # Empty the release list
                     featured_page_release_list = []
 
-                for featured_category in build_tree_dict["featured_category_data"]:
+                for featured_category in build_tree_dict["featured_category_data"].keys():
                     if build_tree_dict["featured_category_data"][featured_category]["category_release_counter"] > 0:
                         # Record that we built a page
                         total_pages_num += 1
@@ -347,6 +348,11 @@ def build_all_pages():
                 die_message = "Something weird is going on, check The Curator."
                 print(die_message)
                 sys.exit(die_message)
+
+    for category_to_check_for_content in build_tree_dict["featured_category_data"].keys():
+        if build_tree_dict["featured_category_data"][category_to_check_for_content]["category_pages"] > 0:
+            category_metadata_tree[category_to_check_for_content]["metadata"]["populated"] = "1"
+            print("Found featured content in " + category_metadata_tree[category_to_check_for_content]["metadata"]["name"] + ", marking as populated.")
 
     destroy_cursor()
     build_all_pages_timer_done = time.perf_counter()
@@ -380,6 +386,7 @@ def add_to_ipfs_single(target_path):
 def build_main_metadata():
     global releases_folder_ipfs_hash
     global build_tree_dict
+    global category_metadata_tree
     metadata_main_dict = {}
     releases_main_dict = {}
     featured_main_dict = {}
@@ -396,7 +403,7 @@ def build_main_metadata():
     featured_main_dict["pages"] = build_tree_dict["featured_pages"]
     featured_main_dict["pages_folder"] = featured_folder_ipfs_hash
     featured_categories_main_dict["category_folder"] = featured_categories_folder_ipfs_hash
-    featured_categories_main_dict["categories"] = build_tree_dict["category_list_complete"]
+    featured_categories_main_dict["categories"] = category_metadata_tree
     featured_main_dict["category"] = featured_categories_main_dict
     metadata_main_dict["releases"] = releases_main_dict
     metadata_main_dict["featured"] = featured_main_dict

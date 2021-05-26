@@ -1,9 +1,9 @@
 test_nums = {
     0: {'foo': 'bar'},
     1: {'foo': 'bar'},
-    2: {'foo': 'bar'}
+    2: {'foo': 'bar'},
+    4: {'published': 'false'},
+    3: {'published': 'true'}
 }
 
-for i in test_nums:
-
-    print(i)
+print(test_nums[3])
