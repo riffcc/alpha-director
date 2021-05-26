@@ -145,6 +145,7 @@ def build_all_pages():
             category_dict["slug"] = category["slug"]
             category_dict["image"] = category["image"]
             category_dict["provides"] = category["provides"]
+            category_dict["protocol"] = "ipfs"
             category_list.append(category_dict)
 
             category_dict = {}
@@ -158,11 +159,11 @@ def build_all_pages():
                     print("Successfully fetched all data from the database.")
                     # Record that we have successfully finished retrieving data
                     end_of_set = 1
-                    print(category_list)
             if first_query == 1:
                 print("Fetched less than 50 rows.")
                 first_query = 0
                 end_of_set = 1
+    build_tree_dict["category_list_complete"] = category_list
     end_of_set = 0
     destroy_cursor()
 
@@ -384,15 +385,6 @@ def build_main_metadata():
     featured_main_dict = {}
     featured_categories_main_dict = {}
     available_apis = ["1.0.0"]
-    featured_categories_published = [
-        {
-            "category_id": "1",
-            "category_name": "Movies",
-            "category_protocol": "ipfs",
-            # Technically not needed, but may be useful later
-            #"category_ipfs_path": ""
-        }
-    ]
 
     #featured_categories_published[0]["category_ipfs_path"] = featured_categories_folder_ipfs_hash
 
@@ -404,7 +396,7 @@ def build_main_metadata():
     featured_main_dict["pages"] = build_tree_dict["featured_pages"]
     featured_main_dict["pages_folder"] = featured_folder_ipfs_hash
     featured_categories_main_dict["category_folder"] = featured_categories_folder_ipfs_hash
-    featured_categories_main_dict["categories"] = featured_categories_published
+    featured_categories_main_dict["categories"] = build_tree_dict["category_list_complete"]
     featured_main_dict["category"] = featured_categories_main_dict
     metadata_main_dict["releases"] = releases_main_dict
     metadata_main_dict["featured"] = featured_main_dict
