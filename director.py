@@ -12,6 +12,9 @@ from pathlib import Path
 from datetime import datetime
 from paramiko import SSHClient
 from scp import SCPClient
+from discord.ext import commands
+from discord.ext import tasks
+import discord
 import ipfshttpclient
 import os
 import yaml
@@ -37,6 +40,7 @@ if config is None:
 
 # Get our Riff.CC credentials and load them in
 sql_password = config["password"]
+discord_bot_token = config["discord_bot_token"]
 radio_folder = config["radio_folder"]
 curator_user = config["curator_user"]
 curator_pass = config["curator_pass"]
@@ -495,7 +499,8 @@ complete_metadata_ipfs_hash = add_to_ipfs_single(director_path + "/main.json")
 global_timer_done = time.perf_counter()
 print("Published the entire platform as " + complete_metadata_ipfs_hash)
 print("Total of " + str(total_number_of_releases) + " releases published.")
-print(f"The Director is finished. \033[1mTranspilation and publication took {global_timer_done - global_timer:0.4f} seconds. \033[0m \n")
+success_message = f"The Director is finished. \033[1mTranspilation and publication took {global_timer_done - global_timer:0.4f} seconds. \033[0m \n"
+print(success_message)
 print("Uploading finished pointer to " + locator_path)
 # TODO: use BCH to create a locator *after* successfully grabbing the metadata from the CDN
 # It should be enough to just use requests naively and wait for the response to come back
