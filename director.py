@@ -100,12 +100,40 @@ def create_ipfs_locator():
         json.dump(locator_dict, locator)
     # Connect to our SSH host
     setup_ssh_scp_transports('u.riff.cc')
-    scp.put(locator_local_path, remote_path=locator_path)
     # Force IPFS to pin the content on the remote host
     ssh.exec_command('ipfs pin add ' + complete_metadata_ipfs_hash)
     ssh.exec_command('ipfs pin add ' + featured_folder_ipfs_hash)
     ssh.exec_command('ipfs pin add ' + featured_categories_folder_ipfs_hash)
+    ssh.exec_command('ipfs get ' + complete_metadata_ipfs_hash)
+    ssh.exec_command('ipfs get ' + featured_folder_ipfs_hash)
+    ssh.exec_command('ipfs get ' + featured_categories_folder_ipfs_hash)
 
+    # If we haven't yet retrieved the metadata successfully, the app will not work, so let's wait for that.
+    we_are_not_riff_yet = 1
+
+    print("Testing the magic locator...")
+    # TODO: add timing here
+    while we_are_not_riff_yet == 1:
+        print("Current statuses...")
+        response = requests.get("https://cdn.riff.cc/ipfs/" + complete_metadata_ipfs_hash)
+        response2 = requests.get("https://cdn.riff.cc/ipfs/" + featured_folder_ipfs_hash)
+        response3 = requests.get("https://cdn.riff.cc/ipfs/" + featured_categories_folder_ipfs_hash)
+        print("Main metadata files: " + str(response.status_code))
+        print("Featured releases (general): " + str(response2.status_code))
+        print("Featured releases (split by category): " + str(response3.status_code))
+        if response.status_code == 200:
+            if response2.status_code == 200:
+                if response3.status_code == 200:
+                    # We have successfully retrieved our pointer, which makes us riff ;)
+                    #
+                    we_are_not_riff_yet = 0
+        if we_are_not_riff_yet == 1:
+            print("We haven't yet successfully retrieved the key data, let's try again until we do.")
+
+    print("Successfully loaded all necessary metadata.")
+    print(response.text)
+    print("Pushing the locator to u.riff.cc/magic")
+    scp.put(locator_local_path, remote_path=locator_path)
 
 def create_director_folder():
     global director_path
@@ -506,11 +534,6 @@ print("Uploading finished pointer to " + locator_path)
 # It should be enough to just use requests naively and wait for the response to come back
 # before proper publication.
 create_ipfs_locator()
-print("Waiting for propagation...")
-time.sleep(10)
-print("Testing the magic locator...")
-response = requests.get("https://cdn.riff.cc/ipfs/" + complete_metadata_ipfs_hash)
-print(response.text)
 
 # TODOs: (things the script does not do yet)
 # warn if something was deleted (possibly should be handled by curator) and made it into our dataset anyway
