@@ -7,7 +7,8 @@ Purpose
   data into a parseable metadata tree that a browser can easily parse.
 
 * This provides a middle ground between "NoSQL" and "Relational" that allows
-  clients to quickly and easily retrieve metadata about the site.
+  clients to quickly and easily retrieve metadata about the site, without exposing
+  user data beyond "who uploaded what releases".
 
 * The cost of storing this metadata goes up over time with each run of The Director,
   but because of the nature of the software (and its reliance on IPFS), in practice
@@ -35,6 +36,8 @@ Testing environment
 ===================
 * Riff.CC @ https://github.com/riffcc/platform/commit/16cee87ee56ebc40d6ff1728481ebba26b08f723
   (based on Unit3D v5.2.0 as of 2021-07-29)
+  
+* M1 MacBook Air, Big Sur 11.2.2, homebrew Python3 3.9.5
 
 Setup
 =====
@@ -44,4 +47,9 @@ Setup
 
 * Create a file "~/.rcc-tools.yml" with the sensitive database credentials, ~/.rcc-tools.yml.example provided
 
-  `cp examples/.rcc-tools.dist ~/.rcc-tools.yml
+  `cp examples/.rcc-tools.dist ~/.rcc-tools.yml`
+  
+* Ensure PostgreSQL is running (and you've imported a sanitized Riff.CC dump)
+  
+* Perform a run
+  `python3 director.py`
