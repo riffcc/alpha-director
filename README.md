@@ -57,4 +57,3 @@ The Director would not have been possible without the following:
 
 * https://stackoverflow.com/a/54228841
 * JetBrains generously providing tools for our open source development
-* Pawsey, under Grant from CSIRO
