@@ -1,16 +1,9 @@
 ---
-login: true
-password: "this.is.your.password"
-curator_user: "curator"
-curator_pass: "super.secure.walnut.walrus"
-curator_host: "127.0.0.1"
-qbtpassword: "most.secure.thing.ever"
-rccuser: "wings"
-rccpass: "hello.world.this.is.riff"
-rccauthkey: "1234fakestreet"
-page_rows: "200"
-radio_folder: "/opt/radio"
+# API host including protocol and a trailing slash
+director_host: "https://director.riff.cc/"
+
+# Folder containing Riff.CC stuff
+radio_folder: "/opt/riffcc-radio/"
+
+# HACK: Force IPFS to rehash everything.
 force_new_publication: "0"
-locator_path: "/var/www/html/public/magic/locator.json"
-discord_bot_token: welcomecindytotheuniiiiiverse
-discord_bot_permissions: 1073747968
