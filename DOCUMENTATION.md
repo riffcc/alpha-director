@@ -2,9 +2,7 @@ Purpose
 =======
 * The Director is a tool used to "transpile" a regular "Unit3D CE" 
   based private tracker from its native MySQL-based relational database,
-  into a local PostgreSQL database that skips columns that could plausibly
-  contain Personally Identifiable Information, then finally transform that
-  data into a parseable metadata tree that a browser can easily parse.
+  into a parseable metadata tree that a browser can easily parse.
 
 * This provides a middle ground between "NoSQL" and "Relational" that allows
   clients to quickly and easily retrieve metadata about the site.
@@ -19,15 +17,12 @@ Purpose
 * Upon completion of the run, The Director stores a "magic locator" beacon that allows clients to
   retrieve the complete platform data as it stands.
 
-* In the future, we will ask our power users to join our IPFS Cluster as followers and maintain the metadata set,
-  as they do with the current BitTorrent set.
+* In the future, we will ask our power users to join our IPFS Cluster as followers and maintain the metadata set.
 
 Requirements
 ============
 
 * A modern Python3 stack (tested on Python 3.9.5 on macOS Big Sur version 11.2.2)
-
-* A modern PostgreSQL installation
 
 * A functional Unit3D installation somewhere, with SSH keys setup that allow for passwordless authentication.
 
