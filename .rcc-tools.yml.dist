@@ -2,8 +2,11 @@
 # API host including protocol and a trailing slash
 director_host: "https://director.riff.cc/"
 
-# Folder containing Riff.CC stuff
+# Folder containing Riff.CC media
 radio_folder: "/opt/riffcc-radio/"
+
+# Number of releases per page
+releases_per_page: 50
 
 # HACK: Force IPFS to rehash everything.
 force_new_publication: "0"
