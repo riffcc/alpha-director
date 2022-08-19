@@ -28,15 +28,16 @@ Requirements
 
 Testing environment
 ===================
-* Riff.CC @ https://github.com/riffcc/platform/commit/16cee87ee56ebc40d6ff1728481ebba26b08f723
-  (based on Unit3D v5.2.0 as of 2021-07-29)
+* Stock Unit3D software @ v6.3.0
+
+(We previously had a custom Unit3D codebase called Platform, but it has been deprecated)
 
 Setup
 =====
 * Create a file "~/.rcc-api" with the API key of an unprivileged user who can only view torrents (we called ours "Stream")
 
-  `cp examples/.rcc-api.dist ~/.rcc-api`
+  `editor ~/.rcc-api`
 
 * Create a file "~/.rcc-tools.yml" with the sensitive database credentials, ~/.rcc-tools.yml.example provided
 
-  `cp examples/.rcc-tools.dist ~/.rcc-tools.yml
+  `cp .rcc-tools.yml.dist ~/.rcc-tools.yml`
