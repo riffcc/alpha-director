@@ -10,7 +10,6 @@ from curses import meta
 from pathlib import Path
 from datetime import datetime
 import os,sys,yaml,json
-from importlib_metadata import metadata
 from platform import release
 import requests
 
