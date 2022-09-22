@@ -6,11 +6,9 @@
 
 # Import needed modules
 from __future__ import with_statement
-from curses import meta
 from pathlib import Path
 from datetime import datetime
 import os,sys,yaml,json
-from platform import release
 import requests
 
 # Set our API key
